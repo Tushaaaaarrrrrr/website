@@ -32,10 +32,12 @@ function App() {
             </Link>
             
             <div className="hidden md:flex items-center gap-8 font-bold uppercase tracking-widest text-sm">
-              <Link to="/#about" className="hover:text-primary transition-colors">About</Link>
-              <Link to="/#courses" className="hover:text-primary transition-colors">Courses</Link>
-              <Link to="/#results" className="hover:text-primary transition-colors">Results</Link>
-              <BruteButton variant="black" className="px-6 py-2 text-sm">Join Now</BruteButton>
+              <a href="/#about" className="hover:text-primary transition-colors">About</a>
+              <a href="/#courses" className="hover:text-primary transition-colors">Courses</a>
+              <a href="/#results" className="hover:text-primary transition-colors">Results</a>
+              <a href="/#courses">
+                <BruteButton variant="black" className="px-6 py-2 text-sm">Join Now</BruteButton>
+              </a>
             </div>
 
             <button 
@@ -48,7 +50,7 @@ function App() {
         </nav>
 
         {/* Main Routing Content */}
-        <main className="flex-grow pt-24">
+        <main className="flex-grow pt-20">
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/course/:id" element={<CoursePage />} />
@@ -85,8 +87,8 @@ function App() {
             
             <div className="flex flex-col gap-4 font-black uppercase tracking-widest text-sm">
               <h4 className="text-black/50 mb-2">Platform</h4>
-              <Link to="/#courses" className="hover:text-primary">Courses</Link>
-              <Link to="/#about" className="hover:text-primary">About Us</Link>
+              <a href="/#courses" className="hover:text-primary">Courses</a>
+              <a href="/#about" className="hover:text-primary">About Us</a>
             </div>
 
             <div className="flex flex-col gap-4 font-black uppercase tracking-widest text-sm">

@@ -24,31 +24,27 @@ const ExplodedView = () => {
 
   return (
     <div ref={containerRef} className="h-[300vh] relative bg-black">
-      <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
+      <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden py-12">
         {/* Background Grid Accent */}
         <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(206,18,52,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(206,18,52,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
 
-        <div className="relative w-full max-w-4xl px-4">
-          <div className="text-center mb-16">
+        <div className="relative w-full max-w-3xl px-4 flex flex-col justify-center items-center">
+          <div className="text-center mb-10 w-full shrink-0">
             <motion.h2 
               style={{ opacity: useTransform(smoothProgress, [0, 0.2, 0.8, 1], [1, 0, 0, 1]) }}
-              className="text-6xl md:text-8xl font-black font-headline uppercase text-white mb-4"
+              className="text-4xl sm:text-6xl md:text-7xl font-black font-headline uppercase text-white mb-4"
             >
               The Assembly <br/> <span className="text-primary italic">Of Skill</span>
             </motion.h2>
           </div>
 
-          <div className="relative aspect-video flex items-center justify-center">
+          <div className="relative aspect-video w-full flex items-center justify-center shrink-0">
             {/* Main Mockup - The Mechanical Depth Center */}
             <motion.div 
               style={{ scale: scaleS, rotateX: rotateS }}
-              className="relative z-10 w-full h-full brute-card overflow-hidden"
+              className="relative z-10 w-full h-full brute-card overflow-hidden bg-surface"
             >
-              <img 
-                src="/Users/laxmikant/.gemini/antigravity/brain/2f4bb589-2343-4915-894e-cd262e0d6c5f/mechanical_depth_texture_1774079887387.png" 
-                alt="Mechanical Depth"
-                className="w-full h-full object-cover opacity-80"
-              />
+              <div className="w-full h-full absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_black_1px,_transparent_1px)] bg-[size:10px_10px]"></div>
               <div className="absolute inset-0 flex items-center justify-center">
                 <h3 className="text-4xl font-black text-black bg-white px-6 py-2 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   CORE-01
@@ -59,12 +55,17 @@ const ExplodedView = () => {
             {/* Satellite Components (Exploding Bits) */}
             <motion.div 
               style={{ x: explodeX, y: explodeY, rotate: rotateS }}
-              className="absolute -top-10 -right-10 w-48 h-48 brute-card-red flex items-center justify-center z-20"
+              className="absolute -top-10 -right-10 w-48 h-48 z-20"
             >
-              <div className="text-center">
-                <div className="text-2xl font-black">CURRICULUM</div>
-                <div className="text-xs font-mono opacity-80">v2.4.0-STABLE</div>
-              </div>
+              <a 
+                href="#courses" 
+                className="w-full h-full brute-card-red flex items-center justify-center cursor-pointer hover:bg-white hover:text-primary transition-all duration-300 group"
+              >
+                <div className="text-center">
+                  <div className="text-2xl font-black group-hover:scale-110 transition-transform">CURRICULUM</div>
+                  <div className="text-xs font-mono opacity-80 mt-1">v2.4.0-STABLE</div>
+                </div>
+              </a>
             </motion.div>
 
             <motion.div 
@@ -94,10 +95,10 @@ const ExplodedView = () => {
             </svg>
           </div>
 
-          <div className="mt-16 text-center">
+          <div className="mt-10 text-center w-full shrink-0">
             <motion.h2 
               style={{ opacity: useTransform(smoothProgress, [0, 0.8, 1], [0, 0, 1]) }}
-              className="text-6xl md:text-8xl font-black font-headline uppercase text-white"
+              className="text-4xl sm:text-6xl md:text-7xl font-black font-headline uppercase text-white"
             >
               Precision <br/> <span className="text-primary italic">Reassembled</span>
             </motion.h2>

@@ -12,12 +12,13 @@ import BruteButton from '../components/BruteButton';
 import Counter from '../components/Counter';
 import ExplodedView from '../components/ExplodedView';
 import AnimatedStepper from '../components/AnimatedStepper';
+import TiltCard from '../components/TiltCard';
 
 function LandingPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative pt-40 pb-20 px-6 overflow-hidden min-h-screen flex items-center">
+      <section className="relative pt-12 pb-24 px-6 overflow-hidden min-h-[80vh] flex items-center">
         <div className="max-w-7xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -27,12 +28,17 @@ function LandingPage() {
             <div className="inline-block bg-primary text-white font-black px-4 py-1 uppercase tracking-[0.3em] text-xs mb-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               Established 2024 // GEN-01
             </div>
-            <h1 className="text-7xl md:text-9xl font-black font-headline leading-[0.85] uppercase mb-8">
-              MASTER <br />
-              <span className="text-primary italic">DATA</span> <br />
-              SCIENCE.
-            </h1>
-            <p className="text-xl text-surface max-w-lg mb-12 font-bold leading-relaxed border-l-4 border-primary pl-6">
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+            >
+              <h1 className="text-7xl md:text-9xl font-black font-headline leading-[0.85] uppercase mb-4 hover:text-primary transition-colors duration-500 cursor-default">
+                MASTER <br />
+                <span className="text-primary italic">DATA</span> <br />
+                SCIENCE.
+              </h1>
+            </motion.div>
+            <p className="text-xl text-surface max-w-lg mb-6 font-bold leading-relaxed border-l-4 border-primary pl-6">
               Build real-world ML systems. We forge industry-ready data scientists through rigorous curriculum, hands-on analytics, and career-focused learning.
             </p>
             <div className="flex flex-wrap gap-6">
@@ -46,18 +52,31 @@ function LandingPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="relative hidden lg:block"
+            className="relative hidden lg:block perspective-1000"
           >
             <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full"></div>
-            <div className="brute-card bg-surface p-2 p-8 relative">
-                <div className="text-9xl font-black text-black/5 absolute -top-10 -right-10 pointer-events-none">01</div>
-                <div className="space-y-6">
-                    <div className="flex items-center gap-4 border-b-2 border-black/10 pb-4">
-                        <Code2 className="text-primary" size={32} />
-                        <span className="font-black uppercase text-xl">Industrial Analytics</span>
+            
+            <TiltCard>
+              <div className="brute-card bg-surface p-2 p-8 relative shadow-2xl">
+                  <motion.div 
+                    className="text-9xl font-black text-black/5 absolute -top-10 -right-10 pointer-events-none"
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
+                  >
+                    01
+                  </motion.div>
+                  <div className="space-y-6 relative z-10" style={{ transform: "translateZ(30px)" }}>
+                      <div className="flex items-center gap-4 border-b-2 border-black/10 pb-4">
+                          <motion.div
+                            animate={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                          >
+                            <Code2 className="text-primary" size={32} />
+                          </motion.div>
+                          <span className="font-black uppercase text-xl">Industrial Analytics</span>
                     </div>
                     <div className="p-4 bg-black text-white font-mono text-sm border-l-4 border-primary">
                         {"> IMPORTING DATASETS..."} <br/>
@@ -67,17 +86,18 @@ function LandingPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="h-20 bg-primary/10 border-2 border-black/5"></div>
                         <div className="h-20 bg-primary/20 border-2 border-black/5"></div>
-                    </div>
-                </div>
-            </div>
+                      </div>
+                  </div>
+              </div>
+            </TiltCard>
           </motion.div>
         </div>
 
         {/* Ticker Tape */}
         <div className="absolute bottom-0 w-full bg-primary py-3 overflow-hidden border-y-4 border-black rotate-1 scale-110">
-          <div className="flex whitespace-nowrap animate-marquee font-black text-surface px-2 uppercase tracking-widest text-sm">
-            {Array(10).fill(" // MACHINE LEARNING // AI ANALYTICS // DATA SCIENCE PIPELINES ").map((t, i) => (
-              <span key={i}>{t}</span>
+          <div className="flex whitespace-nowrap animate-marquee w-max font-black text-surface uppercase tracking-widest text-sm">
+            {Array(20).fill(" // MACHINE LEARNING // AI ANALYTICS // DATA SCIENCE PIPELINES ").map((t, i) => (
+              <span key={i} className="px-2">{t}</span>
             ))}
           </div>
         </div>
@@ -109,9 +129,9 @@ function LandingPage() {
       {/* Achievements / Statistics */}
       <section id="results" className="py-24 px-6 bg-black">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Counter value={5000} label="Students Enrolled" />
-          <Counter value={92} label="Success Rate (%)" />
-          <Counter value={150} label="Projects Completed" />
+          <Counter value={3345} suffix="+" label="Students Enrolled" />
+          <Counter value={92} suffix="%" label="Success Rate" />
+          <Counter value={150} suffix="+" label="Projects Completed" />
         </div>
       </section>
 
