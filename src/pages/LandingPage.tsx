@@ -13,6 +13,7 @@ import Counter from '../components/Counter';
 import ExplodedView from '../components/ExplodedView';
 import AnimatedStepper from '../components/AnimatedStepper';
 import TiltCard from '../components/TiltCard';
+import NeonGlowButton from '../components/NeonGlowButton';
 
 function LandingPage() {
   return (
@@ -84,8 +85,16 @@ function LandingPage() {
                         {"> SYSTEM OPTIMIZED."}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="h-20 bg-primary/10 border-2 border-black/5"></div>
-                        <div className="h-20 bg-primary/20 border-2 border-black/5"></div>
+                        <NeonGlowButton 
+                          label="DEPLOY" 
+                          hoverText="SYSTEM ONLINE" 
+                          className="h-20"
+                        />
+                        <NeonGlowButton 
+                          label="ANALYZE" 
+                          hoverText="PROCESSING..." 
+                          className="h-20"
+                        />
                       </div>
                   </div>
               </div>
