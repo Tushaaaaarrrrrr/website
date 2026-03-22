@@ -6,7 +6,10 @@ import {
   Database,
   Shield,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Search,
+  FileJson,
+  Table2
 } from 'lucide-react';
 import BruteButton from '../components/BruteButton';
 import Counter from '../components/Counter';
@@ -14,6 +17,7 @@ import ExplodedView from '../components/ExplodedView';
 import AnimatedStepper from '../components/AnimatedStepper';
 import TiltCard from '../components/TiltCard';
 import NeonGlowButton from '../components/NeonGlowButton';
+import InteractiveFolder from '../components/InteractiveFolder';
 
 function LandingPage() {
   return (
@@ -84,6 +88,20 @@ function LandingPage() {
                         {"> TRAINING ML MODELS..."} <br/>
                         {"> SYSTEM OPTIMIZED."}
                     </div>
+
+                    <div className="flex justify-center pt-12 pb-4">
+                      <InteractiveFolder 
+                        label="REPOSITORIES"
+                        color="#CE1234"
+                        size={1}
+                        items={[
+                          <Database key="1" className="w-6 h-6 text-primary" />,
+                          <Search key="2" className="w-6 h-6 text-primary" />,
+                          <Table2 key="3" className="w-6 h-6 text-primary" />
+                        ]}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <NeonGlowButton 
                           label="DEPLOY" 
