@@ -9,7 +9,9 @@ import {
   ArrowRight,
   Search,
   FileJson,
-  Table2
+  Table2,
+  Activity,
+  Cpu
 } from 'lucide-react';
 import BruteButton from '../components/BruteButton';
 import Counter from '../components/Counter';
@@ -73,46 +75,62 @@ function LandingPage() {
                   >
                     01
                   </motion.div>
-                  <div className="space-y-6 relative z-10" style={{ transform: "translateZ(30px)" }}>
-                      <div className="flex items-center gap-4 border-b-2 border-black/10 pb-4">
-                          <motion.div
-                            animate={{ rotate: [0, 10, -10, 0] }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                          >
-                            <Code2 className="text-primary" size={32} />
-                          </motion.div>
-                          <span className="font-black uppercase text-xl">Industrial Analytics</span>
-                    </div>
-                    <div className="p-4 bg-black text-white font-mono text-sm border-l-4 border-primary">
-                        {"> IMPORTING DATASETS..."} <br/>
-                        {"> TRAINING ML MODELS..."} <br/>
-                        {"> SYSTEM OPTIMIZED."}
-                    </div>
+                   <div className="space-y-4 relative z-10" style={{ transform: "translateZ(30px)" }}>
+                      <div className="flex items-center justify-between border-b-2 border-black/10 pb-4">
+                          <div className="flex items-center gap-4">
+                            <motion.div
+                              animate={{ rotate: [0, 10, -10, 0] }}
+                              transition={{ repeat: Infinity, duration: 2 }}
+                            >
+                              <Code2 className="text-primary" size={32} />
+                            </motion.div>
+                            <span className="font-black uppercase text-xl">Industrial Analytics</span>
+                          </div>
+                      </div>
 
-                    <div className="flex justify-center pt-12 pb-4">
-                      <InteractiveFolder 
-                        label="REPOSITORIES"
-                        color="#CE1234"
-                        size={1}
-                        items={[
-                          <Database key="1" className="w-6 h-6 text-primary" />,
-                          <Search key="2" className="w-6 h-6 text-primary" />,
-                          <Table2 key="3" className="w-6 h-6 text-primary" />
-                        ]}
-                      />
-                    </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Box 1: Terminal Snippet */}
+                        <div className="bg-black text-[10px] text-white p-3 font-mono border-l-4 border-primary brute-card shadow-sm h-32 flex flex-col justify-center">
+                          <div className="text-primary opacity-50 mb-1">ST-01 // READY</div>
+                          {"> INCOMING DATA..."} <br/>
+                          {"> MODEL LOADED"} <br/>
+                          {"> OPTIMIZING..."}
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <NeonGlowButton 
-                          label="DEPLOY" 
-                          hoverText="SYSTEM ONLINE" 
-                          className="h-20"
-                        />
-                        <NeonGlowButton 
-                          label="ANALYZE" 
-                          hoverText="PROCESSING..." 
-                          className="h-20"
-                        />
+                        {/* Box 2: System Stats */}
+                        <div className="brute-card bg-surface p-3 h-32 flex flex-col justify-center items-center text-center">
+                          <Activity size={20} className="text-primary mb-2 animate-pulse" />
+                          <div className="text-[10px] font-black uppercase text-black/40">Accuracy</div>
+                          <div className="text-2xl font-black text-black">98.4%</div>
+                        </div>
+
+                        {/* Box 3: Repositories */}
+                        <div className="brute-card bg-surface/50 p-3 h-32 flex items-center justify-center overflow-visible">
+                          <InteractiveFolder 
+                            label="REPOS"
+                            color="#CE1234"
+                            size={0.7}
+                            items={[
+                              <Database key="1" className="w-5 h-5 text-primary" />,
+                              <Cpu key="2" className="w-5 h-5 text-primary" />,
+                              <Table2 key="3" className="w-5 h-5 text-primary" />
+                            ]}
+                          />
+                        </div>
+
+                        {/* Box 4: Controls */}
+                        <div className="grid grid-rows-2 gap-2 h-32">
+                          <NeonGlowButton 
+                            label="DEPLOY" 
+                            hoverText="OK" 
+                            className="h-full py-0 text-[10px] border-1"
+                          />
+                          <NeonGlowButton 
+                            label="RUN" 
+                            hoverText="...PRC" 
+                            className="h-full py-0 text-[10px] border-1"
+                          />
+                        </div>
                       </div>
                   </div>
               </div>
