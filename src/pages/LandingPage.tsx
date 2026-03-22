@@ -88,24 +88,96 @@ function LandingPage() {
                           </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Box 1: Terminal Snippet */}
-                        <div className="bg-black text-[10px] text-white p-3 font-mono border-l-4 border-primary brute-card shadow-sm h-32 flex flex-col justify-center">
+                      <motion.div 
+                        initial="hidden"
+                        animate="show"
+                        variants={{
+                          hidden: { opacity: 0 },
+                          show: {
+                            opacity: 1,
+                            transition: {
+                              staggerChildren: 0.15,
+                              delayChildren: 0.3
+                            }
+                          }
+                        }}
+                        className="grid grid-cols-2 gap-4"
+                      >
+                        {/* Box 1: Terminal Snippet with Typing Effect */}
+                        <motion.div 
+                          variants={{
+                            hidden: { opacity: 0, y: 20 },
+                            show: { opacity: 1, y: 0 }
+                          }}
+                          className="bg-black text-[10px] text-white p-3 font-mono border-l-4 border-primary brute-card shadow-sm h-32 flex flex-col justify-center"
+                        >
                           <div className="text-primary opacity-50 mb-1">ST-01 // READY</div>
-                          {"> INCOMING DATA..."} <br/>
-                          {"> MODEL LOADED"} <br/>
-                          {"> OPTIMIZING..."}
-                        </div>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 2, ease: "linear", repeat: Infinity, repeatDelay: 3 }}
+                            className="overflow-hidden whitespace-nowrap"
+                          >
+                            {"> INCOMING DATA..."}
+                          </motion.div>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 2, delay: 0.5, ease: "linear", repeat: Infinity, repeatDelay: 3 }}
+                            className="overflow-hidden whitespace-nowrap"
+                          >
+                            {"> MODEL LOADED"}
+                          </motion.div>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 1, delay: 1, ease: "linear", repeat: Infinity, repeatDelay: 4 }}
+                            className="overflow-hidden whitespace-nowrap font-black text-primary"
+                          >
+                            {"> OPTIMIZING..."}
+                          </motion.div>
+                        </motion.div>
 
-                        {/* Box 2: System Stats */}
-                        <div className="brute-card bg-surface p-3 h-32 flex flex-col justify-center items-center text-center">
+                        {/* Box 2: System Stats with Counter */}
+                        <motion.div 
+                          variants={{
+                            hidden: { opacity: 0, y: 20 },
+                            show: { opacity: 1, y: 0 }
+                          }}
+                          className="brute-card bg-surface p-3 h-32 flex flex-col justify-center items-center text-center"
+                        >
                           <Activity size={20} className="text-primary mb-2 animate-pulse" />
                           <div className="text-[10px] font-black uppercase text-black/40">Accuracy</div>
-                          <div className="text-2xl font-black text-black">98.4%</div>
-                        </div>
+                          <div className="text-2xl font-black text-black tabular-nums">
+                            <motion.span
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                            >
+                               98.4%
+                            </motion.span>
+                          </div>
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: "80%" }}
+                            transition={{ duration: 1.5, delay: 1 }}
+                            className="h-1 bg-primary/20 mt-2 w-full max-w-[40px] overflow-hidden"
+                          >
+                            <motion.div 
+                              animate={{ x: ["-100%", "100%"] }}
+                              transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                              className="h-full w-full bg-primary"
+                            />
+                          </motion.div>
+                        </motion.div>
 
                         {/* Box 3: Repositories */}
-                        <div className="brute-card bg-surface/50 p-3 h-32 flex items-center justify-center overflow-visible">
+                        <motion.div 
+                          variants={{
+                            hidden: { opacity: 0, y: 20 },
+                            show: { opacity: 1, y: 0 }
+                          }}
+                          className="brute-card bg-surface/50 p-3 h-32 flex items-center justify-center overflow-visible"
+                        >
                           <InteractiveFolder 
                             label="REPOS"
                             color="#CE1234"
@@ -116,10 +188,16 @@ function LandingPage() {
                               <Table2 key="3" className="w-5 h-5 text-primary" />
                             ]}
                           />
-                        </div>
+                        </motion.div>
 
                         {/* Box 4: Controls */}
-                        <div className="grid grid-rows-2 gap-2 h-32">
+                        <motion.div 
+                          variants={{
+                            hidden: { opacity: 0, y: 20 },
+                            show: { opacity: 1, y: 0 }
+                          }}
+                          className="grid grid-rows-2 gap-2 h-32"
+                        >
                           <NeonGlowButton 
                             label="DEPLOY" 
                             hoverText="OK" 
@@ -130,8 +208,8 @@ function LandingPage() {
                             hoverText="...PRC" 
                             className="h-full py-0 text-[10px] border-1"
                           />
-                        </div>
-                      </div>
+                        </motion.div>
+                      </motion.div>
                   </div>
               </div>
             </TiltCard>
