@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Razorpay from 'razorpay';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 // ---------------------------------------------------------------------------
 // /api/purchase-success — Secure bridge between payment and LMS enrollment
