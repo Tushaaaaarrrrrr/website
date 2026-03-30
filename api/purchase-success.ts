@@ -16,7 +16,7 @@ const RAZORPAY_SECRET = process.env.RAZORPAY_SECRET;
 
 /** Allowed course IDs — whitelist to prevent arbitrary courseId injection */
 const VALID_COURSE_IDS: Record<string, string> = {
-  'python-data-science': 'LMS-COURSE-cmnbmadrs000813fx1bwloni6',
+  'python-data-science': 'cmnbmadrs000813fx1bwloni6',
   // Add more courses here as they become available on LMS
 };
 
@@ -33,7 +33,7 @@ interface EnrollPayload {
 
 /**
  * Call the LMS external-enroll endpoint.
- * Returns the parsed JSON response and HTTP status.
+ * Returns the parsed JSON response, status code, and status text.
  */
 async function callLmsEnroll(payload: {
   secret: string;
@@ -42,7 +42,7 @@ async function callLmsEnroll(payload: {
   phone: string;
   gender?: string;
   courseId: string;
-}): Promise<{ status: number; body: any }> {
+}): Promise<{ status: number; statusText: string; body: any }> {
   const url = `${LMS_API_URL}/api/external-enroll`;
 
   const res = await fetch(url, {
@@ -52,13 +52,24 @@ async function callLmsEnroll(payload: {
   });
 
   let body: any;
+  const contentType = res.headers.get('content-type');
+
   try {
-    body = await res.json();
-  } catch {
-    body = { message: 'Non-JSON response from LMS' };
+    if (contentType && contentType.includes('application/json')) {
+      body = await res.json();
+    } else {
+      body = await res.text();
+    }
+  } catch (error) {
+    console.error(`[LMS Error] Failed to parse response from ${url}:`, error);
+    body = { message: 'Failed to parse LMS response' };
   }
 
-  return { status: res.status, body };
+  return { 
+    status: res.status, 
+    statusText: res.statusText, 
+    body 
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -146,8 +157,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     courseId: lmsCourseId,
   };
 
-  console.log(`[purchase-success] Enrolling ${email} in ${courseId} (${lmsCourseId})`);
-
   // ── Call LMS (with one retry on failure) ──────────────────────
   let attempt = 0;
   const MAX_ATTEMPTS = 2;
@@ -155,11 +164,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   while (attempt < MAX_ATTEMPTS) {
     attempt++;
     try {
-      const { status, body } = await callLmsEnroll(lmsPayload);
+      // [LMS Request] logs
+      console.log(`[LMS Request] (Attempt ${attempt}/${MAX_ATTEMPTS})`);
+      console.log(`[LMS Request] URL: ${LMS_API_URL}/api/external-enroll`);
+      console.log(`[LMS Request] Course: ${courseId} -> ${lmsCourseId}`);
+      console.log(`[LMS Request] Payload: ${JSON.stringify({ ...lmsPayload, secret: '[REDACTED]' })}`);
+      console.log(`[LMS Request] Secret Present: ${!!EXTERNAL_ENROLL_SECRET}`);
+
+      const { status, statusText, body } = await callLmsEnroll(lmsPayload);
+
+      // [LMS Response] logs
+      console.log(`[LMS Response] Status: ${status} ${statusText}`);
+      console.log(`[LMS Response] Body:`, JSON.stringify(body, null, 2));
 
       // Success or already enrolled → treat as success
       if (status >= 200 && status < 300) {
-        console.log(`[purchase-success] ✅ Enrollment successful (attempt ${attempt}):`, body);
+        console.log(`[LMS Request] ✅ Enrollment successful:`, body);
         return res.status(200).json({
           success: true,
           message: body?.message || 'Enrollment successful',
@@ -167,37 +187,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      // LMS returned an error
-      console.error(
-        `[purchase-success] ❌ LMS returned ${status} (attempt ${attempt}):`,
-        JSON.stringify(body),
-      );
+      // ── LMS Error Handling ────────────────────────────────────
+      let errorMessage = 'Enrollment service unavailable';
+      if (status === 401) errorMessage = 'Unauthorized (check secret)';
+      else if (status === 404) errorMessage = 'Course not found';
+      else if (status === 500) errorMessage = 'LMS server error';
+      
+      // If LMS provided a message, include it
+      const lmsMessage = body?.message || (typeof body === 'string' ? body : '');
+      const finalError = lmsMessage ? `${errorMessage}: ${lmsMessage}` : errorMessage;
+
+      console.error(`[LMS Error] ${status} ${statusText}: ${finalError}`);
 
       // If this was the last attempt, return the error
       if (attempt >= MAX_ATTEMPTS) {
-        return res.status(502).json({
+        return res.status(status >= 500 ? 502 : status).json({
           success: false,
-          message: 'Enrollment service temporarily unavailable. Please try again later.',
+          message: finalError,
+          lmsStatus: status
         });
       }
 
       // Otherwise, retry after a short delay
-      console.log(`[purchase-success] Retrying in 1 second...`);
+      console.log(`[LMS Request] Retrying in 1 second...`);
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err: any) {
-      console.error(
-        `[purchase-success] ❌ Network error (attempt ${attempt}):`,
-        err?.message || err,
-      );
+      console.error(`[LMS Error] Network or internal error (attempt ${attempt}):`, err?.message || err);
 
       if (attempt >= MAX_ATTEMPTS) {
         return res.status(502).json({
           success: false,
-          message: 'Unable to reach enrollment service. Please try again later.',
+          message: `Unable to reach enrollment service: ${err?.message || 'Unknown network error'}`
         });
       }
 
-      console.log(`[purchase-success] Retrying in 1 second...`);
+      console.log(`[LMS Request] Retrying in 1 second...`);
       await new Promise((r) => setTimeout(r, 1000));
     }
   }
