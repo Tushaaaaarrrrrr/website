@@ -114,7 +114,9 @@ function CoursePage() {
             <div className="p-8 border-b-4 border-black bg-white/5">
               <div className="text-sm font-black uppercase text-surface/50 tracking-widest mb-2">Enrollment Cost</div>
               <div className="text-primary font-black text-6xl italic leading-none mb-6">{course.price}</div>
-              <BruteButton variant="primary" className="w-full text-xl py-4">Buy Now</BruteButton>
+              <Link to={`/buy?course=${id}`} className="w-full block">
+                <BruteButton variant="primary" className="w-full text-xl py-4">Buy Now</BruteButton>
+              </Link>
             </div>
             
             <div className="p-8 bg-surface text-black space-y-6">

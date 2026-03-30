@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Razorpay from 'razorpay';
 
 // ---------------------------------------------------------------------------
 // /api/purchase-success — Secure bridge between payment and LMS enrollment
@@ -10,6 +11,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const LMS_API_URL = process.env.LMS_API_URL; // e.g. https://teaching-llm.onrender.com
 const EXTERNAL_ENROLL_SECRET = process.env.EXTERNAL_ENROLL_SECRET;
+const RAZORPAY_SECRET = process.env.RAZORPAY_SECRET;
 
 /** Allowed course IDs — whitelist to prevent arbitrary courseId injection */
 const VALID_COURSE_IDS: Record<string, string> = {
@@ -20,7 +22,12 @@ const VALID_COURSE_IDS: Record<string, string> = {
 interface EnrollPayload {
   email: string;
   name: string;
+  phone: string;
+  gender?: string;
   courseId: string; // website slug e.g. "python-data-science"
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
 }
 
 /**
@@ -31,6 +38,8 @@ async function callLmsEnroll(payload: {
   secret: string;
   email: string;
   name: string;
+  phone: string;
+  gender?: string;
   courseId: string;
 }): Promise<{ status: number; body: any }> {
   const url = `${LMS_API_URL}/api/external-enroll`;
@@ -64,18 +73,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── Parse & validate body ─────────────────────────────────────
-  const { email, name, courseId } = req.body as EnrollPayload;
+  const { 
+    email, 
+    name, 
+    phone, 
+    gender, 
+    courseId,
+    razorpay_payment_id,
+    razorpay_order_id,
+    razorpay_signature 
+  } = req.body as EnrollPayload;
 
-  if (!email || !name || !courseId) {
+  if (!email || !name || !phone || !courseId || !razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
     return res.status(400).json({
       success: false,
-      message: 'Missing required fields: email, name, courseId',
+      message: 'Missing required fields: email, name, phone, courseId, or payment details',
     });
   }
 
   // Basic email format check
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ success: false, message: 'Invalid email format' });
+  }
+
+  // Phone validation (numeric only, 7-15 digits)
+  if (!/^[0-9]{7,15}$/.test(phone)) {
+    return res.status(400).json({ success: false, message: 'Invalid phone format' });
+  }
+
+  // ── Razorpay Signature Verification ───────────────────────────
+  if (!RAZORPAY_SECRET) {
+    console.error('[purchase-success] RAZORPAY_SECRET not set');
+    return res.status(500).json({ success: false, message: 'Server configuration error' });
+  }
+
+  try {
+    const { validatePaymentVerification } = require('razorpay/dist/utils/razorpay-utils');
+    const isValid = validatePaymentVerification(
+      { "order_id": razorpay_order_id, "payment_id": razorpay_payment_id },
+      razorpay_signature,
+      RAZORPAY_SECRET
+    );
+
+    if (!isValid) {
+      console.warn(`[purchase-success] Invalid signature for order: ${razorpay_order_id}`);
+      return res.status(400).json({ success: false, message: 'Payment verification failed. Invalid signature.' });
+    }
+    console.log(`[purchase-success] Signature verified for order: ${razorpay_order_id}`);
+  } catch (error) {
+    console.error('[purchase-success] Signature verification error:', error);
+    return res.status(500).json({ success: false, message: 'Error verifying payment signature' });
   }
 
   // Map website slug → LMS course ID
@@ -92,6 +139,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     secret: EXTERNAL_ENROLL_SECRET,
     email: email.trim().toLowerCase(),
     name: name.trim(),
+    phone: phone.trim(),
+    gender: gender,
     courseId: lmsCourseId,
   };
 

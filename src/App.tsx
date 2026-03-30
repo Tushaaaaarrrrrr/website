@@ -10,6 +10,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import RefundPage from './pages/RefundPage';
 import ShippingPage from './pages/ShippingPage';
 import ContactPage from './pages/ContactPage';
+import BuyPage from './pages/BuyPage';
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -54,6 +55,7 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/course/:id" element={<CoursePage />} />
+            <Route path="/buy" element={<BuyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/refund" element={<RefundPage />} />

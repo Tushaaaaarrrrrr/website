@@ -8,7 +8,12 @@
 export interface EnrollRequest {
   email: string;
   name: string;
+  phone: string;
+  gender?: string;
   courseId: string; // website slug, e.g. "python-data-science"
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
 }
 
 export interface EnrollResponse {
@@ -47,7 +52,12 @@ export async function enrollAfterPurchase(
       body: JSON.stringify({
         email: data.email,
         name: data.name,
+        phone: data.phone,
+        gender: data.gender,
         courseId: data.courseId,
+        razorpay_payment_id: data.razorpay_payment_id,
+        razorpay_order_id: data.razorpay_order_id,
+        razorpay_signature: data.razorpay_signature,
       }),
     });
 
