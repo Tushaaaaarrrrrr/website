@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Razorpay from 'razorpay';
+import crypto from 'crypto';
 
 // ---------------------------------------------------------------------------
 // /api/purchase-success — Secure bridge between payment and LMS enrollment
@@ -108,16 +109,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { validatePaymentVerification } = require('razorpay/dist/utils/razorpay-utils');
-    const isValid = validatePaymentVerification(
-      { "order_id": razorpay_order_id, "payment_id": razorpay_payment_id },
-      razorpay_signature,
-      RAZORPAY_SECRET
-    );
+    const generatedSignature = crypto
+      .createHmac('sha256', RAZORPAY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
 
-    if (!isValid) {
+    console.log(`[purchase-success] Generated Signature: ${generatedSignature}`);
+    console.log(`[purchase-success] Received Signature: ${razorpay_signature}`);
+
+    if (generatedSignature !== razorpay_signature) {
       console.warn(`[purchase-success] Invalid signature for order: ${razorpay_order_id}`);
-      return res.status(400).json({ success: false, message: 'Payment verification failed. Invalid signature.' });
+      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
     }
     console.log(`[purchase-success] Signature verified for order: ${razorpay_order_id}`);
   } catch (error) {
