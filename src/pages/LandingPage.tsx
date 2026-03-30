@@ -273,7 +273,7 @@ function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { id: "python-data-science", title: "Python for Data Science", price: "₹299", icon: <Database /> },
+              { id: "python-data-science", title: "Python for Data Science", price: "₹1", icon: <Database /> },
               { id: "deep-learning", title: "Deep Learning Mastery", price: "₹399", icon: <Layers /> },
               { id: "advanced-ai", title: "Advanced AI & ML", price: "₹499", icon: <Shield /> }
             ].map((course, i) => (

@@ -7,7 +7,7 @@ import BruteButton from '../components/BruteButton';
 const courseContent = {
   "python-data-science": {
     title: "Python for Data Science",
-    price: "₹299",
+    price: "₹1",
     description: "Master the fundamental language of data. Learn Python programming from scratch with a focus on data manipulation, analysis, and visualization libraries like Pandas, NumPy, and Matplotlib. No prior coding experience required.",
     learn: [
       "Core Python syntax and data structures",

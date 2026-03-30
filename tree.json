@@ -1,0 +1,50 @@
+{
+  "codebase": "Tushaaaaarrrrrr/website",
+  "analyzed_at": "2026-03-23",
+  "root": {
+    "name": "website",
+    "file_count": 132,
+    "branches": [
+      {
+        "id": "config",
+        "name": "Project Configuration",
+        "path": "/",
+        "purpose": "Project setup, build tools, and dependencies.",
+        "files": ["package.json", "tsconfig.json", "vite.config.ts", "tailwind.config.mjs", "postcss.config.mjs", "vercel.json", "index.html"],
+        "entry_point": "package.json",
+        "dependencies": [],
+        "sub_branches": []
+      },
+      {
+        "id": "pages",
+        "name": "Frontend Pages",
+        "path": "src/pages",
+        "purpose": "Route-level components and page layouts.",
+        "files": ["LandingPage.tsx", "CoursePage.tsx", "ContactPage.tsx", "PrivacyPage.tsx", "ShippingPage.tsx", "RefundPage.tsx", "TermsPage.tsx"],
+        "entry_point": "LandingPage.tsx",
+        "dependencies": ["components"],
+        "sub_branches": []
+      },
+      {
+        "id": "components",
+        "name": "Frontend Components",
+        "path": "src/components",
+        "purpose": "Reusable UI components and interactive elements.",
+        "files": ["AnimatedStepper.tsx", "NeonGlowButton.tsx", "TiltCard.tsx", "Counter.tsx", "BruteButton.tsx", "InteractiveFolder.tsx", "GrungeOverlay.tsx", "ExplodedView.tsx"],
+        "entry_point": "InteractiveFolder.tsx",
+        "dependencies": [],
+        "sub_branches": []
+      },
+      {
+        "id": "app_entry",
+        "name": "App Entry Point",
+        "path": "src",
+        "purpose": "Bootstrap application logic and global styles.",
+        "files": ["App.tsx", "main.tsx", "index.css"],
+        "entry_point": "main.tsx",
+        "dependencies": ["pages", "components"],
+        "sub_branches": []
+      }
+    ]
+  }
+}
