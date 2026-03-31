@@ -16,11 +16,11 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 const supabase = createClient(SUPABASE_URL || '', SUPABASE_SERVICE_ROLE_KEY || '');
 
 interface EnrollPayload {
+  userId?: string;
   email: string;
   name: string;
   phone: string;
   gender?: string;
-  courseId: string; // website slug e.g. "python-data-science"
   razorpay_payment_id: string;
   razorpay_order_id: string;
   razorpay_signature: string;
@@ -56,15 +56,50 @@ async function callLmsEnroll(payload: {
   return { status: res.status, statusText: res.statusText, body };
 }
 
+async function callGoogleGroupSync(payload: {
+  secret: string;
+  email: string;
+  name: string;
+  courseId: string;
+  googleGroupEmail: string;
+}) {
+  const syncUrl = process.env.GOOGLE_GROUP_SYNC_URL;
+
+  if (!syncUrl) {
+    return { skipped: true };
+  }
+
+  const res = await fetch(syncUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  let body: any;
+  try {
+    body = await res.json();
+  } catch {
+    body = await res.text();
+  }
+
+  return {
+    skipped: false,
+    ok: res.ok,
+    status: res.status,
+    body,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method not allowed' });
 
   const { 
-    email, name, phone, gender, courseId,
+    userId,
+    email, name, phone, gender,
     razorpay_payment_id, razorpay_order_id, razorpay_signature 
   } = req.body as EnrollPayload;
 
-  if (!email || !name || !phone || !courseId || !razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+  if (!email || !name || !phone || !razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
     return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
@@ -87,55 +122,208 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, message: 'Error verifying payment signature' });
   }
 
-  // 2. Dynamic Course Lookup
-  const { data: courseData, error: dbError } = await supabase
-    .from('courses')
-    .select('lms_id')
-    .eq('id', courseId)
-    .single();
+  const { data: orderRecord, error: orderError } = await supabase
+    .from('website_orders')
+    .select('courseIds, courseNames')
+    .eq('orderId', razorpay_order_id)
+    .maybeSingle();
 
-  if (dbError || !courseData?.lms_id) {
-    console.error(`[purchase-success] Course lookup failed for ${courseId}:`, dbError?.message);
-    return res.status(404).json({ success: false, message: 'Course configuration incomplete. Contact support.' });
+  const courseIds = Array.isArray(orderRecord?.courseIds)
+    ? orderRecord.courseIds.filter((courseId): courseId is string => typeof courseId === 'string')
+    : [];
+
+  if (orderError || courseIds.length === 0) {
+    console.error('[purchase-success] Website order lookup failed', orderError);
+    await supabase
+      .from('website_orders')
+      .update({
+        paymentStatus: 'PAID',
+        enrollmentStatus: 'FAILED',
+        paymentId: razorpay_payment_id,
+        failureReason: 'Course configuration incomplete',
+        paidAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('orderId', razorpay_order_id);
+
+    return res.status(404).json({ success: false, message: 'Website order not found. Contact support.' });
   }
 
-  // 3. LMS Enrollment (with retry)
-  const lmsPayload = {
-    secret: EXTERNAL_ENROLL_SECRET!,
-    email: email.trim().toLowerCase(),
-    name: name.trim(),
-    phone: phone.trim(),
-    gender: (gender || 'MALE').toUpperCase(),
-    courseId: courseData.lms_id,
-  };
+  const { data: courses, error: coursesError } = await supabase
+    .from('courses')
+    .select('id, name, price, lms_id, googleGroupEmail')
+    .in('id', courseIds);
 
-  let attempt = 0;
-  const MAX_ATTEMPTS = 2;
-  while (attempt < MAX_ATTEMPTS) {
-    attempt++;
-    try {
-      const { status, body } = await callLmsEnroll(lmsPayload);
-      
-      if (status >= 200 && status < 300) {
-        return res.status(200).json({
-          success: true,
-          message: body?.message || 'Enrollment successful',
-          alreadyEnrolled: body?.alreadyEnrolled || false,
-        });
-      }
+  if (coursesError || !courses || courses.length !== courseIds.length || courses.some((course) => !course.lms_id)) {
+    console.error('[purchase-success] Course configuration lookup failed', coursesError);
+    await supabase
+      .from('website_orders')
+      .update({
+        paymentStatus: 'PAID',
+        enrollmentStatus: 'FAILED',
+        paymentId: razorpay_payment_id,
+        failureReason: 'Course configuration incomplete',
+        paidAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('orderId', razorpay_order_id);
 
-      if (attempt >= MAX_ATTEMPTS) {
-        return res.status(status >= 500 ? 502 : status).json({
-          success: false,
-          message: body?.message || 'Enrollment failed',
+    return res.status(404).json({ success: false, message: 'One or more courses are not configured for checkout.' });
+  }
+
+  const orderedCourses = courseIds
+    .map((courseId) => courses.find((course) => course.id === courseId))
+    .filter((course): course is { id: string; name: string; price: number; lms_id: string; googleGroupEmail: string | null } => Boolean(course));
+
+  const totalAmount = orderedCourses.reduce((sum, course) => sum + Number(course.price), 0);
+
+  if (userId) {
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      await supabase
+        .from('profiles')
+        .update({
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          phone: phone.trim(),
+          gender: (gender || 'MALE').toUpperCase(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
+    } else {
+      await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          phone: phone.trim(),
+          gender: (gender || 'MALE').toUpperCase(),
+          role: 'STUDENT',
+          updated_at: new Date().toISOString(),
         });
-      }
-      await new Promise(r => setTimeout(r, 1000));
-    } catch (err) {
-      if (attempt >= MAX_ATTEMPTS) {
-        return res.status(502).json({ success: false, message: 'LMS service unreachable' });
-      }
-      await new Promise(r => setTimeout(r, 1000));
     }
   }
+
+  await supabase
+    .from('website_orders')
+    .update({
+      userId: userId || null,
+      userName: name.trim(),
+      userEmail: email.trim().toLowerCase(),
+      courseId: orderedCourses[0].id,
+      courseName: orderedCourses[0].name,
+      courseIds: orderedCourses.map((course) => course.id),
+      courseNames: orderedCourses.map((course) => course.name),
+      courseCount: orderedCourses.length,
+      amount: totalAmount,
+      paymentStatus: 'PAID',
+      paymentId: razorpay_payment_id,
+      paidAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    .eq('orderId', razorpay_order_id);
+
+  const MAX_ATTEMPTS = 2;
+
+  for (const course of orderedCourses) {
+    let attempt = 0;
+
+    while (attempt < MAX_ATTEMPTS) {
+      attempt++;
+
+      try {
+        const { status, body } = await callLmsEnroll({
+          secret: EXTERNAL_ENROLL_SECRET!,
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          phone: phone.trim(),
+          gender: (gender || 'MALE').toUpperCase(),
+          courseId: course.lms_id,
+        });
+
+        if (status >= 200 && status < 300) {
+          break;
+        }
+
+        if (attempt >= MAX_ATTEMPTS) {
+          await supabase
+            .from('website_orders')
+            .update({
+              enrollmentStatus: 'FAILED',
+              failureReason: body?.message || `Enrollment failed for ${course.name}`,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('orderId', razorpay_order_id);
+
+          return res.status(status >= 500 ? 502 : status).json({
+            success: false,
+            message: body?.message || `Enrollment failed for ${course.name}`,
+          });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (err) {
+        if (attempt >= MAX_ATTEMPTS) {
+          await supabase
+            .from('website_orders')
+            .update({
+              enrollmentStatus: 'FAILED',
+              failureReason: `LMS service unreachable for ${course.name}`,
+              updatedAt: new Date().toISOString(),
+            })
+            .eq('orderId', razorpay_order_id);
+
+          return res.status(502).json({ success: false, message: `LMS service unreachable for ${course.name}` });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  const groupSyncSecret = process.env.GOOGLE_GROUP_SYNC_SECRET;
+
+  if (groupSyncSecret) {
+    for (const course of orderedCourses) {
+      if (!course.googleGroupEmail) {
+        continue;
+      }
+
+      try {
+        const groupSyncResult = await callGoogleGroupSync({
+          secret: groupSyncSecret,
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          courseId: course.id,
+          googleGroupEmail: course.googleGroupEmail,
+        });
+
+        if (!groupSyncResult.skipped && !groupSyncResult.ok) {
+          console.error('[purchase-success] Google group sync failed', groupSyncResult);
+        }
+      } catch (groupError) {
+        console.error('[purchase-success] Google group sync error', groupError);
+      }
+    }
+  }
+
+  await supabase
+    .from('website_orders')
+    .update({
+      enrollmentStatus: 'ENROLLED',
+      failureReason: null,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq('orderId', razorpay_order_id);
+
+  return res.status(200).json({
+    success: true,
+    message: `Enrollment successful for ${orderedCourses.length} course${orderedCourses.length === 1 ? '' : 's'}`,
+  });
 }

@@ -6,11 +6,11 @@
 // ---------------------------------------------------------------------------
 
 export interface EnrollRequest {
+  userId?: string;
   email: string;
   name: string;
   phone: string;
   gender?: string;
-  courseId: string; // website slug, e.g. "python-data-science"
   razorpay_payment_id: string;
   razorpay_order_id: string;
   razorpay_signature: string;
@@ -50,11 +50,11 @@ export async function enrollAfterPurchase(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        userId: data.userId,
         email: data.email,
         name: data.name,
         phone: data.phone,
         gender: data.gender,
-        courseId: data.courseId,
         razorpay_payment_id: data.razorpay_payment_id,
         razorpay_order_id: data.razorpay_order_id,
         razorpay_signature: data.razorpay_signature,

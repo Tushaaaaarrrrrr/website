@@ -5,7 +5,8 @@ import { Edit2, Trash2, Plus, Star } from 'lucide-react';
 
 export interface Course {
   id: string;
-  lms_id?: string;
+  lms_id?: string | null;
+  googleGroupEmail?: string | null;
   name: string;
   description: string;
   price: number;
@@ -25,7 +26,7 @@ export default function Courses() {
   
   // Form State
   const [formData, setFormData] = useState<Partial<Course>>({
-    id: '', lms_id: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: ''
+    id: '', lms_id: '', googleGroupEmail: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: ''
   });
 
   const fetchCourses = async () => {
@@ -45,7 +46,7 @@ export default function Courses() {
       setFormData(course);
     } else {
       setEditingCourse(null);
-      setFormData({ id: '', lms_id: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: '' });
+      setFormData({ id: '', lms_id: '', googleGroupEmail: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: '' });
     }
     setIsModalOpen(true);
   };
@@ -87,6 +88,13 @@ export default function Courses() {
   };
 
   const togglePin = async (course: Course) => {
+    const pinnedCount = courses.filter((item) => item.isPinned).length;
+
+    if (!course.isPinned && pinnedCount >= 3) {
+      alert('Only 3 homepage courses can be featured at a time.');
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from('courses').update({ isPinned: !course.isPinned }).eq('id', course.id);
     if (!error) await fetchCourses();
@@ -98,7 +106,7 @@ export default function Courses() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-3xl font-black uppercase text-white mb-2">Subject <span className="text-primary italic">Registry</span></h2>
-          <p className="text-white/60 font-bold">Manage platform course offerings.</p>
+          <p className="text-white/60 font-bold">Manage platform course offerings and homepage featured slots.</p>
         </div>
         <BruteButton variant="primary" onClick={() => handleOpenModal()} className="flex items-center gap-2 py-2">
           <Plus size={16} /> New Course
@@ -124,6 +132,11 @@ export default function Courses() {
               <h3 className="text-xl font-black uppercase leading-tight mb-2 truncate" title={course.name}>{course.name}</h3>
               <p className="text-black/60 font-bold line-clamp-2 text-sm mb-4">{course.description}</p>
               <div className="text-primary font-black text-2xl italic mb-6">₹{course.price}</div>
+              {course.googleGroupEmail && (
+                <div className="mb-4 text-[11px] font-mono text-black/60 break-all">
+                  Group: {course.googleGroupEmail}
+                </div>
+              )}
               
               <div className="flex gap-2">
                 <button onClick={() => handleOpenModal(course)} className="flex-1 border-2 border-black bg-white hover:bg-black hover:text-white transition-colors py-2 flex items-center justify-center gap-2 font-black uppercase text-xs tracking-widest">
@@ -161,6 +174,17 @@ export default function Courses() {
                   <input placeholder="e.g. clm123abc..." className="w-full border-2 border-black bg-white p-3 font-mono text-sm" value={formData.lms_id || ''} onChange={(e) => setFormData({...formData, lms_id: e.target.value})} />
                   <p className="text-[10px] text-black/40 mt-1 font-bold uppercase">Internal LMS course link</p>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest mb-1">Google Group Email</label>
+                <input
+                  type="email"
+                  placeholder="e.g. cohort-1@googlegroups.com"
+                  className="w-full border-2 border-black bg-white p-3 font-mono text-sm"
+                  value={formData.googleGroupEmail || ''}
+                  onChange={(e) => setFormData({...formData, googleGroupEmail: e.target.value})}
+                />
               </div>
 
               <div className="grid grid-cols-1 gap-4">

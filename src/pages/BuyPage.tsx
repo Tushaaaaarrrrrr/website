@@ -1,420 +1,490 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, AlertCircle, LogOut, User as UserIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, CheckSquare, LogOut, Square, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BruteButton from '../components/BruteButton';
+import ProfileCompletionModal from '../components/ProfileCompletionModal';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { supabase } from '../lib/supabase';
 import { enrollAfterPurchase } from '../services/enrollService';
 import { logActivity } from '../services/activityLogger';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { markOrderFailed } from '../services/orderService';
+import { isProfileComplete } from '../utils/profile';
+import type { Course } from '../types/app';
 
-// Razorpay's window interface extension
 declare global {
   interface Window {
     Razorpay: any;
   }
 }
 
-function BuyPage() {
+interface RazorpayDetails {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+export default function BuyPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
-  const courseId = searchParams.get('course');
-  
-  const { user, profile, signOut, refreshProfile } = useAuth();
-  
-  const [course, setCourse] = useState<{ id: string, name: string, price: number, display: string } | null>(null);
-  const [loadingCourse, setLoadingCourse] = useState(true);
+  const incomingCourseId = searchParams.get('course');
 
-  useEffect(() => {
-    async function fetchCourse() {
-      if (!courseId) {
-        setLoadingCourse(false);
-        return;
-      }
-      const { data } = await supabase.from('courses').select('*').eq('id', courseId).single();
-      if (data) {
-        setCourse({ ...data, display: `₹${data.price}` });
-        logActivity({
-          action: 'VISIT_CHECKOUT',
-          courseId,
-          email: profile?.email || user?.email || undefined,
-          userId: user?.id
-        });
-      }
-      setLoadingCourse(false);
-    }
-    fetchCourse();
-  }, [courseId, profile?.email, user?.email, user?.id]);
+  const { user, profile, signOut, isProfileComplete: profileReady } = useAuth();
+  const {
+    items,
+    selectedIds,
+    addToCart,
+    removeFromCart,
+    toggleSelection,
+    selectAll,
+    selectOnly,
+    clearPurchasedCourses,
+  } = useCart();
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    gender: ''
-  });
-
-  // Pre-fill form once profile is loaded
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        name: profile.name || '',
-        email: profile.email || '',
-        phone: profile.phone || '',
-        gender: profile.gender || ''
-      });
-    } else if (user) {
-      setFormData(prev => ({ ...prev, email: user.email || '' }));
-    }
-  }, [profile, user]);
-
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [enrollStatus, setEnrollStatus] = useState<'idle' | 'success' | 'checking'>('idle');
-  const [hasPaid, setHasPaid] = useState(false);
-  const [razorpayData, setRazorpayData] = useState<{
-    razorpay_payment_id: string;
-    razorpay_order_id: string;
-    razorpay_signature: string;
-  } | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'success' | 'processing'>('idle');
+  const [razorpayData, setRazorpayData] = useState<RazorpayDetails | null>(null);
+  const [processedCourseIds, setProcessedCourseIds] = useState<string[]>([]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {
-    if (!loadingCourse && !course) {
-      navigate('/#courses');
+    if (!incomingCourseId) return;
+
+    if (!items.includes(incomingCourseId)) {
+      addToCart(incomingCourseId);
+      return;
     }
-  }, [course, loadingCourse, navigate]);
 
-  // Sanitize simple inputs
-  const sanitize = (val: string) => {
-    return val.replace(/[<>]/g, '').trim();
-  };
+    if (!selectedIds.includes(incomingCourseId)) {
+      selectOnly([...selectedIds, incomingCourseId]);
+    }
+  }, [addToCart, incomingCourseId, items, selectOnly, selectedIds]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: sanitize(e.target.value)
+  useEffect(() => {
+    async function fetchCartCourses() {
+      if (items.length === 0) {
+        setCourses([]);
+        setLoadingCourses(false);
+        return;
+      }
+
+      setLoadingCourses(true);
+      const { data, error: fetchError } = await supabase
+        .from('courses')
+        .select('*')
+        .in('id', items);
+
+      if (fetchError) {
+        console.error('Failed to load cart courses', fetchError);
+        setError('Failed to load cart courses. Please refresh the page.');
+        setCourses([]);
+        setLoadingCourses(false);
+        return;
+      }
+
+      const courseMap = new Map((data as Course[]).map((course) => [course.id, course]));
+      const orderedCourses = items.map((courseId) => courseMap.get(courseId)).filter((course): course is Course => Boolean(course));
+      const missingCourseIds = items.filter((courseId) => !courseMap.has(courseId));
+
+      if (missingCourseIds.length > 0) {
+        missingCourseIds.forEach((courseId) => removeFromCart(courseId));
+      }
+
+      setCourses(orderedCourses);
+      setLoadingCourses(false);
+    }
+
+    fetchCartCourses();
+  }, [items, removeFromCart]);
+
+  useEffect(() => {
+    if (!loadingCourses && !profileReady && selectedIds.length > 0) {
+      setShowProfileModal(true);
+    }
+  }, [loadingCourses, profileReady, selectedIds.length]);
+
+  const selectedCourses = useMemo(
+    () => courses.filter((course) => selectedIds.includes(course.id)),
+    [courses, selectedIds],
+  );
+
+  const totalAmount = useMemo(
+    () => selectedCourses.reduce((sum, course) => sum + Number(course.price), 0),
+    [selectedCourses],
+  );
+
+  const courseSummaryText = selectedCourses.map((course) => course.name).join(', ');
+
+  const logFailedPurchase = (reason: string, metadata?: Record<string, unknown>) => {
+    selectedCourses.forEach((course) => {
+      logActivity({
+        action: 'FAILED_PURCHASE',
+        courseId: course.id,
+        courseName: course.name,
+        email: profile?.email || user?.email || undefined,
+        userId: user?.id,
+        userName: profile?.name || null,
+        metadata: {
+          reason,
+          ...(metadata || {}),
+        },
+      });
     });
   };
 
   const handlePayment = async () => {
     setError(null);
 
-    // Front-end Validation
-    if (!formData.name || formData.name.length > 100) {
-      setError("Please enter a valid name (max 100 characters).");
+    if (!user || !profile) {
+      setError('User session not found.');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email || !emailRegex.test(formData.email)) {
-      setError("Please enter a valid email address.");
+    if (selectedCourses.length === 0) {
+      setError('Select at least one course before continuing to payment.');
       return;
     }
 
-    const phoneRegex = /^[0-9]{7,15}$/;
-    if (!formData.phone || !phoneRegex.test(formData.phone)) {
-      setError("Please enter a valid phone number (digits only, 7-15 length).");
+    if (!isProfileComplete(profile)) {
+      setShowProfileModal(true);
+      logFailedPurchase('INCOMPLETE_PROFILE');
       return;
     }
 
-    if (!courseId || !course) {
-      setError("Invalid course selection.");
-      return;
-    }
-
-    const performEnrollment = async (rzpDetails?: typeof razorpayData) => {
-      const details = rzpDetails || razorpayData;
-      if (!details) {
-        setError("Missing payment verification details.");
-        return;
-      }
-
-      setEnrollStatus('checking');
-      setIsProcessing(true);
-
-      // If details changed, update profile in Supabase
-      if (user && (formData.name !== profile?.name || formData.phone !== profile?.phone || formData.gender !== profile?.gender)) {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          email: user.email!,
-          name: formData.name,
-          phone: formData.phone,
-          gender: formData.gender,
-          updated_at: new Date().toISOString()
-        });
-        await refreshProfile();
-      }
-
-      const result = await enrollAfterPurchase({
-        email: formData.email.toLowerCase(),
-        name: formData.name,
-        phone: formData.phone,
-        gender: formData.gender || undefined,
-        courseId: courseId!,
-        ...details
-      });
-
-      setIsProcessing(false);
-
-      if (result.success) {
-        setEnrollStatus('success');
-        logActivity({ 
-          action: 'PURCHASE', 
-          courseId: courseId!, 
-          email: formData.email, 
-          userId: user?.id || undefined, 
-          metadata: { orderId: details.razorpay_order_id } 
-        });
-      } else {
-        setEnrollStatus('idle'); // Allow "Retry Enrollment"
-        setError(result.message || "Payment succeeded but enrollment failed. Please click 'Retry Enrollment'.");
-        setHasPaid(true); // Don't trigger Razorpay again
-        setIsProcessing(false);
-      }
-    };
-
-    if (hasPaid) {
-      await performEnrollment();
-      return;
-    }
-
-    // Initialize Razorpay
     if (!window.Razorpay) {
-      setError("Payment Gateway failed to load. Please refresh the page or check your connection.");
+      setError('Payment gateway failed to load. Please refresh the page and try again.');
+      logFailedPurchase('RAZORPAY_NOT_LOADED');
+      return;
+    }
+
+    if (razorpayData) {
+      await completeEnrollment(razorpayData);
       return;
     }
 
     setIsProcessing(true);
+    setCheckoutStatus('processing');
 
     try {
-      // 1. Create order on backend
       const orderRes = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId })
+        body: JSON.stringify({
+          courseIds: selectedCourses.map((course) => course.id),
+          userId: user.id,
+          email: profile.email.toLowerCase(),
+          userName: profile.name,
+        }),
       });
 
       const orderData = await orderRes.json();
 
       if (!orderRes.ok || !orderData.success) {
-        throw new Error(orderData.message || "Failed to create payment order");
+        throw new Error(orderData.message || 'Failed to create payment order');
       }
 
-      const keyId = (import.meta as any).env.VITE_RAZORPAY_KEY_ID;
-
       const options = {
-        key: keyId || "TEST_KEY_PLACEHOLDER", 
+        key: (import.meta as any).env.VITE_RAZORPAY_KEY_ID || 'TEST_KEY_PLACEHOLDER',
         amount: orderData.amount,
         currency: orderData.currency,
-        name: "Alpha IITIAN",
-        description: `Course Enrollment: ${courseId}`,
-        order_id: orderData.orderId, // Required for signature verification
-        theme: {
-          color: "#CE1234" // Match primary color
-        },
+        name: 'Alpha IITIAN',
+        description: `Course Enrollment: ${courseSummaryText}`,
+        order_id: orderData.orderId,
+        theme: { color: '#CE1234' },
         prefill: {
-          name: formData.name,
-          email: formData.email.toLowerCase(),
-          contact: formData.phone
+          name: profile.name,
+          email: profile.email.toLowerCase(),
+          contact: profile.phone,
         },
-        handler: async function (response: any) {
-          const details = {
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature,
-          };
-          setRazorpayData(details);
-          setHasPaid(true);
-          await performEnrollment(details);
+        handler: async (response: RazorpayDetails) => {
+          setRazorpayData(response);
+          await completeEnrollment(response);
         },
         modal: {
-          ondismiss: function() {
+          ondismiss: () => {
             setIsProcessing(false);
-          }
-        }
+            setCheckoutStatus('idle');
+          },
+        },
       };
 
       const rzp = new window.Razorpay(options);
-      
-      rzp.on('payment.failed', function (response: any) {
+
+      rzp.on('payment.failed', async (response: any) => {
+        const failureReason = response?.error?.description || 'Payment failed';
+        const failedOrderId = response?.error?.metadata?.order_id || orderData.orderId;
+
+        try {
+          await markOrderFailed(failedOrderId, failureReason);
+        } catch (updateError) {
+          console.error('Failed to update order failure state', updateError);
+        }
+
         setIsProcessing(false);
-        setError("Payment failed: " + response.error.description);
-        logActivity({ 
-          action: 'PAYMENT_FAILED', 
-          courseId: courseId!, 
-          email: formData.email, 
-          userId: user?.id || undefined, 
-          metadata: { error: response.error } 
+        setCheckoutStatus('idle');
+        setError(`Payment failed: ${failureReason}`);
+        logFailedPurchase('PAYMENT_FAILED', {
+          orderId: failedOrderId,
+          gatewayCode: response?.error?.code,
         });
       });
 
       rzp.open();
-    } catch (err: any) {
-      console.error('[BuyPage] Order creation error:', err);
-      setError(err.message || "Unable to initialize payment. Please try again.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to initialize payment. Please try again.';
+      console.error('Checkout initialization failed', err);
+      setError(message);
       setIsProcessing(false);
+      setCheckoutStatus('idle');
+      logFailedPurchase('ORDER_CREATION_FAILED', { message });
     }
   };
 
-  if (loadingCourse) return <div className="min-h-screen bg-black flex items-center justify-center text-primary font-black uppercase text-2xl animate-pulse">Initializing Checkout...</div>;
-  if (!course) return null; // Wait for redirect to happen
+  const completeEnrollment = async (details: RazorpayDetails) => {
+    setIsProcessing(true);
+    setCheckoutStatus('processing');
 
-  if (enrollStatus === 'success') {
+    const result = await enrollAfterPurchase({
+      userId: user?.id,
+      email: profile?.email || '',
+      name: profile?.name || '',
+      phone: profile?.phone || '',
+      gender: profile?.gender || undefined,
+      ...details,
+    });
+
+    setIsProcessing(false);
+
+    if (!result.success) {
+      setCheckoutStatus('idle');
+      setError(result.message || 'Payment succeeded but enrollment failed.');
+      logFailedPurchase('LMS_SYNC_FAILED', {
+        orderId: details.razorpay_order_id,
+        message: result.message,
+      });
+      return;
+    }
+
+    const purchasedCourseIds = selectedCourses.map((course) => course.id);
+    setProcessedCourseIds(purchasedCourseIds);
+    clearPurchasedCourses(purchasedCourseIds);
+    setCheckoutStatus('success');
+
+    selectedCourses.forEach((course) => {
+      logActivity({
+        action: 'SUCCESS_PURCHASE',
+        courseId: course.id,
+        courseName: course.name,
+        email: profile?.email || undefined,
+        userId: user?.id,
+        userName: profile?.name || null,
+        metadata: {
+          orderId: details.razorpay_order_id,
+          paymentId: details.razorpay_payment_id,
+        },
+      });
+    });
+  };
+
+  if (checkoutStatus === 'success') {
     return (
       <div className="max-w-3xl mx-auto px-6 py-24 min-h-[70vh] flex flex-col items-center text-center">
         <div className="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center mb-8 mx-auto brute-card border-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <ShieldCheck size={48} />
+          <CheckSquare size={48} />
         </div>
-        <h1 className="text-5xl font-black font-headline uppercase mb-4">Enrollment Complete!</h1>
+        <h1 className="text-5xl font-black font-headline uppercase mb-4">Checkout Complete</h1>
         <p className="text-xl text-surface/80 font-bold mb-12">
-          Your payment was successful and you have been added to the course.
-          Check your email ({formData.email.toLowerCase()}) for login details.
+          Payment succeeded for {processedCourseIds.length} course{processedCourseIds.length === 1 ? '' : 's'} and access has been processed for {profile?.email}.
         </p>
-        <Link to="/#courses">
-          <BruteButton variant="primary">Return to Dashboard</BruteButton>
+        <Link to="/orders">
+          <BruteButton variant="primary">View Order History</BruteButton>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12 relative z-10">
-      <Link to={`/course/${courseId}`} className="inline-flex items-center gap-2 text-surface/60 font-bold uppercase tracking-widest text-sm hover:text-primary mb-12 transition-colors">
-        <ArrowLeft size={16} /> Cancel Purchase
-      </Link>
+    <>
+      <ProfileCompletionModal
+        open={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        title="Complete Your Profile First"
+        description="Name, phone number, and gender are required before payment can continue."
+        onCompleted={() => setError(null)}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        {/* Course Summary */}
-        <div>
-          <h2 className="text-4xl font-black font-headline uppercase mb-8">Order Summary</h2>
-          <div className="brute-card bg-surface p-8 text-black mb-8 border-b-8 border-black">
-            <div className="text-sm font-black uppercase text-black/50 tracking-widest mb-2">Selected Course</div>
-            <h3 className="text-2xl font-black uppercase mb-6 leading-tight">
-              {courseId!.split('-').join(' ')}
-            </h3>
-            
-            <div className="border-t-2 border-dashed border-black/20 pt-6 mt-6">
-              <div className="flex justify-between items-center text-xl font-black">
-                <span>Total Amount:</span>
-                <span className="text-primary italic text-3xl">{course.display}</span>
+      <div className="max-w-7xl mx-auto px-6 py-12 relative z-10">
+        <Link to="/courses" className="inline-flex items-center gap-2 text-surface/60 font-bold uppercase tracking-widest text-sm hover:text-primary mb-12 transition-colors">
+          <ArrowLeft size={16} /> Continue Browsing
+        </Link>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.9fr] gap-10 items-start">
+          <div>
+            <div className="flex items-center justify-between mb-8 gap-4">
+              <div>
+                <h1 className="text-5xl md:text-6xl font-black font-headline uppercase text-white mb-3">Course Cart</h1>
+                <p className="text-surface/70 font-bold uppercase tracking-widest text-sm">Select the courses you want to purchase in this checkout.</p>
               </div>
+              {courses.length > 0 && (
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="border-2 border-primary text-primary px-4 py-3 font-black uppercase tracking-widest text-xs hover:bg-primary hover:text-white transition-colors"
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+
+            {error && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-900 border-2 border-red-500 text-white font-bold flex gap-3 text-sm">
+                <AlertCircle className="shrink-0 text-red-400" />
+                <span>{error}</span>
+              </motion.div>
+            )}
+
+            <div className="space-y-4">
+              {loadingCourses ? (
+                <div className="brute-card bg-surface p-8 text-primary font-black uppercase tracking-widest animate-pulse">
+                  Loading cart...
+                </div>
+              ) : courses.length === 0 ? (
+                <div className="brute-card bg-surface p-10 text-center text-black">
+                  <h2 className="text-3xl font-black uppercase mb-3">Cart Is Empty</h2>
+                  <p className="text-black/60 font-bold mb-6">Add one or more courses before you checkout.</p>
+                  <Link to="/courses">
+                    <BruteButton variant="primary">Browse Courses</BruteButton>
+                  </Link>
+                </div>
+              ) : (
+                courses.map((course) => {
+                  const isSelected = selectedIds.includes(course.id);
+
+                  return (
+                    <div key={course.id} className={`brute-card bg-surface p-6 text-black border-b-8 transition-colors ${isSelected ? 'border-primary' : 'border-black'}`}>
+                      <div className="flex items-start gap-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleSelection(course.id)}
+                          className={`mt-1 border-2 p-1 ${isSelected ? 'border-primary text-primary bg-primary/10' : 'border-black/30 text-black/40'}`}
+                          aria-label={isSelected ? `Deselect ${course.name}` : `Select ${course.name}`}
+                        >
+                          {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
+                        </button>
+
+                        <div className="flex-1">
+                          <div className="flex justify-between gap-4 items-start">
+                            <div>
+                              <h2 className="text-2xl font-black uppercase leading-tight">{course.name}</h2>
+                              <p className="text-black/60 font-bold mt-2">{course.description}</p>
+                            </div>
+                            <div className="text-primary font-black text-3xl italic whitespace-nowrap">₹{course.price}</div>
+                          </div>
+
+                          <div className="flex gap-3 mt-6">
+                            <Link to={`/course/${course.id}`} className="flex-1">
+                              <BruteButton variant="outline" className="w-full">Details</BruteButton>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(course.id)}
+                              className="flex items-center justify-center gap-2 border-2 border-red-500 text-red-500 px-4 py-3 font-black uppercase tracking-widest text-xs hover:bg-red-500 hover:text-white transition-colors"
+                            >
+                              <Trash2 size={14} /> Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
-          
-          <div className="flex items-center gap-3 text-surface/70 font-bold text-sm bg-black/50 p-4 border-2 border-surface/20">
-             <ShieldCheck className="text-primary" />
-             <p>Secure SSL Encrypted Payment. Powered by Razorpay.</p>
-          </div>
-        </div>
 
-        {/* User Form */}
-        <div>
-          <h2 className="text-4xl font-black font-headline uppercase mb-8">Your Details</h2>
-          
-          {user && (
-            <div className="mb-8 p-6 brute-card bg-black text-white border-primary border-2 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-primary flex items-center justify-center font-black rounded-full shadow-[2px_2px_0px_0px_white]">
-                  <UserIcon size={24} />
-                </div>
-                <div>
-                  <div className="text-xs font-black uppercase text-primary tracking-widest">Active Account</div>
-                  <div className="font-bold text-sm truncate max-w-[150px] md:max-w-[200px]">{user.email}</div>
+          <div className="sticky top-28 space-y-6">
+            <div className="brute-card bg-surface text-black p-8 border-b-8 border-primary">
+              <h2 className="text-3xl font-black uppercase mb-6">Order Summary</h2>
+
+              <div className="space-y-4 mb-8">
+                {selectedCourses.length === 0 ? (
+                  <div className="text-black/50 font-bold uppercase tracking-widest text-sm">No courses selected</div>
+                ) : (
+                  selectedCourses.map((course) => (
+                    <div key={course.id} className="flex justify-between gap-4 text-sm font-black uppercase tracking-widest">
+                      <span className="max-w-[70%]">{course.name}</span>
+                      <span>₹{course.price}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="border-t-2 border-dashed border-black/20 pt-6 mb-6">
+                <div className="flex justify-between items-center text-xl font-black">
+                  <span>Total Amount</span>
+                  <span className="text-primary italic text-3xl">₹{totalAmount}</span>
                 </div>
               </div>
-              <button 
-                onClick={() => signOut()}
-                className="flex items-center gap-2 text-[10px] font-black uppercase bg-white text-black px-3 py-2 border-2 border-black hover:bg-primary hover:text-white transition-colors"
-              >
-                <LogOut size={12} /> Switch Account
-              </button>
-            </div>
-          )}
 
-          {error && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-900 border-2 border-red-500 text-white font-bold flex gap-3 text-sm">
-              <AlertCircle className="shrink-0 text-red-400" />
-              <span>{error}</span>
-            </motion.div>
-          )}
+              <div className="mb-6 p-4 border-2 border-black bg-black text-white">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">Purchasing As</div>
+                <div className="font-bold text-sm break-all">{profile?.email || user?.email || '---'}</div>
+                <p className="mt-3 text-[11px] font-bold leading-relaxed text-white/70">
+                  Please note: course access will be granted to this email. If you want to use a different email, log out and continue with that account.
+                </p>
+              </div>
 
-          <div className="space-y-6 brute-card bg-surface p-8 text-black">
-            <div>
-              <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Full Name *</label>
-              <input 
-                type="text" 
-                name="name" 
-                value={formData.name} 
-                onChange={handleChange}
-                disabled={isProcessing}
-                className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary disabled:opacity-50"
-                placeholder="John Doe"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Email Address *</label>
-              <input 
-                type="email" 
-                name="email" 
-                value={formData.email} 
-                onChange={handleChange}
-                disabled={isProcessing || !!user} // Email is fixed if logged in
-                className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                placeholder="john@example.com"
-              />
-              {user && <p className="text-[10px] font-black uppercase text-black/40 mt-1 tracking-tighter">Login with a different account to change email</p>}
-            </div>
+              <div className="mb-6 p-4 border-2 border-black bg-white">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40 mb-2">Profile Status</div>
+                <div className="font-bold text-sm">{profileReady ? 'Profile complete' : 'Profile incomplete'}</div>
+                {!profileReady && (
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileModal(true)}
+                    className="mt-3 text-xs font-black uppercase tracking-widest text-primary hover:text-black transition-colors"
+                  >
+                    Complete profile first
+                  </button>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Phone Number *</label>
-              <input 
-                type="tel" 
-                name="phone" 
-                value={formData.phone} 
-                onChange={handleChange}
-                disabled={isProcessing}
-                className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary disabled:opacity-50"
-                placeholder="10 digit mobile number"
-              />
-            </div>
+              {user && (
+                <div className="mb-6 p-4 border-2 border-black bg-black text-white flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Google Account</div>
+                    <div className="font-bold text-sm">{user.email}</div>
+                  </div>
+                  <button
+                    onClick={() => signOut()}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase bg-white text-black px-3 py-2 border-2 border-black hover:bg-primary hover:text-white transition-colors"
+                  >
+                    <LogOut size={12} /> Logout
+                  </button>
+                </div>
+              )}
 
-            <div>
-              <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Gender (Optional)</label>
-              <select 
-                name="gender" 
-                value={formData.gender} 
-                onChange={handleChange}
-                disabled={isProcessing}
-                className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary disabled:opacity-50"
-              >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div className="pt-6 border-t-2 border-black/10">
-              <BruteButton 
-                variant="primary" 
-                className="w-full text-xl py-4" 
+              <BruteButton
+                variant="primary"
+                className="w-full text-xl py-4"
                 onClick={handlePayment}
-                disabled={isProcessing}
-                isTyping={enrollStatus === 'checking'}
+                disabled={isProcessing || selectedCourses.length === 0 || !profileReady}
+                isTyping={checkoutStatus === 'processing'}
               >
-                {enrollStatus === 'checking' ? 'Enrolling...' : isProcessing ? 'Processing Payment...' : hasPaid ? 'Retry Enrollment' : `Pay ${course.display}`}
+                {checkoutStatus === 'processing' ? 'Processing...' : 'Continue To Payment'}
               </BruteButton>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
-
-export default BuyPage;

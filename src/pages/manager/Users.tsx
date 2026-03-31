@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { normalizeWebsiteRole } from '../../utils/profile';
 
 interface Profile {
   id: string;
@@ -23,7 +24,10 @@ export default function Users() {
         .order('name');
         
       if (!error && data) {
-        setUsers(data as Profile[]);
+        setUsers((data as Profile[]).map((profile) => ({
+          ...profile,
+          role: normalizeWebsiteRole(profile.role),
+        })));
       }
       setLoading(false);
     }

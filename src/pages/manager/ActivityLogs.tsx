@@ -1,16 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Activity, RefreshCw } from 'lucide-react';
-
-interface ActivityLog {
-  id: string;
-  userId: string | null;
-  email: string | null;
-  action: string;
-  courseId: string | null;
-  metadata: any;
-  timestamp: string;
-}
+import type { ActivityLog } from '../../types/app';
 
 export default function ActivityLogs() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -60,9 +51,9 @@ export default function ActivityLogs() {
           className="bg-black border-2 border-white/20 text-white p-2 font-bold text-sm tracking-widest uppercase outline-none focus:border-primary transition-colors"
         >
           <option value="ALL">ALL EVENTS</option>
-          <option value="PURCHASE">PURCHASE (Success)</option>
-          <option value="VISIT_CHECKOUT">VISIT CHECKOUT</option>
-          <option value="PAYMENT_FAILED">PAYMENT FAILED</option>
+          <option value="SUCCESS_PURCHASE">SUCCESS PURCHASE</option>
+          <option value="VISIT">VISIT</option>
+          <option value="FAILED_PURCHASE">FAILED PURCHASE</option>
           <option value="SUPPORT_TICKET">SUPPORT TICKET</option>
         </select>
         <input 
@@ -80,8 +71,9 @@ export default function ActivityLogs() {
             <tr>
               <th className="px-6 py-4">Timestamp</th>
               <th className="px-6 py-4">Action Event</th>
+              <th className="px-6 py-4">User</th>
               <th className="px-6 py-4">User Email</th>
-              <th className="px-6 py-4">Course Ref</th>
+              <th className="px-6 py-4">Course</th>
               <th className="px-6 py-4">Metadata</th>
             </tr>
           </thead>
@@ -93,16 +85,17 @@ export default function ActivityLogs() {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 font-black uppercase tracking-widest ${
-                    log.action === 'PURCHASE' ? 'bg-green-500/20 text-green-400 border border-green-500/50' :
-                    log.action === 'PAYMENT_FAILED' ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
-                    log.action === 'VISIT_CHECKOUT' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50' :
+                    log.action === 'SUCCESS_PURCHASE' ? 'bg-green-500/20 text-green-400 border border-green-500/50' :
+                    log.action === 'FAILED_PURCHASE' ? 'bg-red-500/20 text-red-400 border border-red-500/50' :
+                    log.action === 'VISIT' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50' :
                     'bg-white/10 text-white/70 border border-white/20'
                   }`}>
                     {log.action}
                   </span>
                 </td>
+                <td className="px-6 py-4 font-bold">{log.userName || 'Anonymous'}</td>
                 <td className="px-6 py-4 font-bold">{log.email || 'Anonymous'}</td>
-                <td className="px-6 py-4 opacity-70">{log.courseId || '---'}</td>
+                <td className="px-6 py-4 opacity-70">{log.courseName || log.courseId || '---'}</td>
                 <td className="px-6 py-4 truncate max-w-xs opacity-50" title={JSON.stringify(log.metadata)}>
                   {log.metadata ? JSON.stringify(log.metadata) : '---'}
                 </td>
@@ -110,12 +103,12 @@ export default function ActivityLogs() {
             ))}
             {logs.length === 0 && !loading && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-white/40 font-bold uppercase tracking-widest">No Events Found matching criteria</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-white/40 font-bold uppercase tracking-widest">No Events Found matching criteria</td>
               </tr>
             )}
             {loading && logs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-primary font-black uppercase animate-pulse">Loading Telemetry...</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-primary font-black uppercase animate-pulse">Loading Telemetry...</td>
               </tr>
             )}
           </tbody>

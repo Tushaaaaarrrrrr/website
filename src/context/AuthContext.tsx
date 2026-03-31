@@ -1,23 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-
-export interface Profile {
-  id: string;
-  email: string;
-  name: string | null;
-  phone: string | null;
-  gender: string | null;
-  role: string;
-}
+import { saveProfileDetails, syncProfileFromAuth } from '../services/profileService';
+import type { Profile, WebsiteRole } from '../types/app';
+import { isProfileComplete } from '../utils/profile';
 
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  role: WebsiteRole;
+  isManager: boolean;
+  isProfileComplete: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  saveProfile: (values: { name: string; phone: string; gender: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,17 +30,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, name, phone, gender, role')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        // If profile doesn't exist, it will likely return a 406 or similar
-        console.log('Profile fetch status:', error.message);
+      if (error || !data) {
         setProfile(null);
-      } else {
-        setProfile(data);
+        return;
       }
+
+      setProfile({
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        phone: data.phone,
+        gender: data.gender,
+        role: data.role === 'MANAGER' ? 'MANAGER' : 'STUDENT',
+        rawRole: data.role,
+      });
     } catch (err) {
       console.error('Error fetching profile:', err);
       setProfile(null);
@@ -56,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currUser = session?.user ?? null;
       setUser(currUser);
       if (currUser) {
-        await fetchProfile(currUser.id);
+        setProfile(await syncProfileFromAuth(currUser));
       }
       setLoading(false);
     };
@@ -68,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currUser = session?.user ?? null;
       setUser(currUser);
       if (currUser) {
-        await fetchProfile(currUser.id);
+        setProfile(await syncProfileFromAuth(currUser));
       } else {
         setProfile(null);
       }
@@ -113,9 +118,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
-      // Always redirect - this ensures we exit no matter what
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = '/login';
       }, 100);
     }
   };
@@ -124,8 +128,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) await fetchProfile(user.id);
   };
 
+  const saveProfile = async (values: { name: string; phone: string; gender: string }) => {
+    if (!user) {
+      throw new Error('User session not found.');
+    }
+
+    const updatedProfile = await saveProfileDetails({
+      user,
+      existingProfile: profile,
+      name: values.name,
+      phone: values.phone,
+      gender: values.gender,
+    });
+
+    setProfile(updatedProfile);
+  };
+
+  const role = profile?.role === 'MANAGER' ? 'MANAGER' : 'STUDENT';
+  const isManager = role === 'MANAGER';
+  const profileComplete = isProfileComplete(profile);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        role,
+        isManager,
+        isProfileComplete: profileComplete,
+        signInWithGoogle,
+        signOut,
+        refreshProfile,
+        saveProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

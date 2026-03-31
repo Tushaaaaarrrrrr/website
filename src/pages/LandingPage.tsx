@@ -22,9 +22,11 @@ import NeonGlowButton from '../components/NeonGlowButton';
 import InteractiveFolder from '../components/InteractiveFolder';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useCart } from '../context/CartContext';
 
 function LandingPage() {
   const { user, signInWithGoogle } = useAuth();
+  const { addToCart, isInCart } = useCart();
   const [courses, setCourses] = React.useState<any[]>([]);
   const [loadingCourses, setLoadingCourses] = React.useState(true);
 
@@ -36,6 +38,10 @@ function LandingPage() {
     }
     fetchCourses();
   }, []);
+
+  const handleAddToCart = (courseId: string) => {
+    addToCart(courseId);
+  };
 
   return (
     <>
@@ -318,9 +324,16 @@ function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link to={`/course/${course.id}`} className="w-full">
-                    <BruteButton variant="primary" className="w-full">Initialize Access</BruteButton>
-                  </Link>
+                  <div className="flex gap-3">
+                    <Link to={`/course/${course.id}`} className="flex-1">
+                      <BruteButton variant="outline" className="w-full">View Details</BruteButton>
+                    </Link>
+                    <Link to={`/checkout?course=${course.id}`} className="flex-1" onClick={() => handleAddToCart(course.id)}>
+                      <BruteButton variant="primary" className="w-full">
+                        {isInCart(course.id) ? 'Checkout' : 'Buy'}
+                      </BruteButton>
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}

@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Database, Layers, Shield, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import BruteButton from '../components/BruteButton';
+import { useCart } from '../context/CartContext';
 
 export default function AllCoursesPage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { addToCart, isInCart } = useCart();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -17,6 +20,11 @@ export default function AllCoursesPage() {
     }
     fetchCourses();
   }, []);
+
+  const handleAddToCart = (courseId: string) => {
+    addToCart(courseId);
+    navigate(`/checkout?course=${courseId}`);
+  };
 
   return (
     <div className="min-h-screen bg-surface pt-24 px-6 relative">
@@ -52,9 +60,14 @@ export default function AllCoursesPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link to={`/course/${course.id}`} className="w-full">
-                    <BruteButton variant="primary" className="w-full">Initialize Access</BruteButton>
-                  </Link>
+                  <div className="flex gap-3">
+                    <Link to={`/course/${course.id}`} className="flex-1">
+                      <BruteButton variant="outline" className="w-full">View Details</BruteButton>
+                    </Link>
+                    <BruteButton variant="primary" className="flex-1" onClick={() => handleAddToCart(course.id)}>
+                      {isInCart(course.id) ? 'Checkout' : 'Buy'}
+                    </BruteButton>
+                  </div>
                 </div>
               </div>
           ))}

@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, Activity, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, Activity, MessageSquare, Receipt } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV_ITEMS = [
   { path: '/manager', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { path: '/manager/users', label: 'Users', icon: Users },
   { path: '/manager/courses', label: 'Courses', icon: BookOpen },
+  { path: '/manager/orders', label: 'Orders', icon: Receipt },
   { path: '/manager/activity', label: 'Activity Logs', icon: Activity },
   { path: '/manager/support', label: 'Support', icon: MessageSquare },
 ];

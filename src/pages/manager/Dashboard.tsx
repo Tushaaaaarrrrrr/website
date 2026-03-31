@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Users, BookOpen, Activity, MessageSquare } from 'lucide-react';
+import { Users, BookOpen, Activity, MessageSquare, Receipt } from 'lucide-react';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
     users: 0,
     courses: 0,
+    orders: 0,
     activity: 0,
     support: 0,
   });
@@ -20,11 +21,13 @@ export default function Dashboard() {
         const [
           { count: usersCount },
           { count: coursesCount },
+          { count: ordersCount },
           { count: activityCount },
           { count: supportCount }
         ] = await Promise.all([
           supabase.from('profiles').select('*', { count: 'exact', head: true }),
           supabase.from('courses').select('*', { count: 'exact', head: true }),
+          supabase.from('website_orders').select('*', { count: 'exact', head: true }),
           supabase.from('activity_logs').select('*', { count: 'exact', head: true }),
           supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'OPEN')
         ]);
@@ -32,6 +35,7 @@ export default function Dashboard() {
         setStats({
           users: usersCount || 0,
           courses: coursesCount || 0,
+          orders: ordersCount || 0,
           activity: activityCount || 0,
           support: supportCount || 0,
         });
@@ -54,6 +58,7 @@ export default function Dashboard() {
         {[
           { label: 'Total Members', value: stats.users, icon: Users },
           { label: 'Active Courses', value: stats.courses, icon: BookOpen },
+          { label: 'Website Orders', value: stats.orders, icon: Receipt },
           { label: 'System Logs', value: stats.activity, icon: Activity },
           { label: 'Open Tickets', value: stats.support, icon: MessageSquare, highlight: stats.support > 0 }
         ].map((stat, i) => (

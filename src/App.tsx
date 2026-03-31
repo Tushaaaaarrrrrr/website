@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import GrungeOverlay from './components/GrungeOverlay';
 import BruteButton from './components/BruteButton';
@@ -23,67 +23,34 @@ import Support from './pages/manager/Support';
 import SupportWidget from './components/SupportWidget';
 import SupportHistory from './pages/SupportHistory';
 import AllCoursesPage from './pages/AllCoursesPage';
+import LoginPage from './pages/LoginPage';
+import OrdersPage from './pages/OrdersPage';
+import Orders from './pages/manager/Orders';
+import { CartProvider, useCart } from './context/CartContext';
 
-/**
- * Guard Component: Only ensures user is logged in via Google.
- * Profile creation is OPTIONAL, not mandatory.
- */
 function GuardedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
   if (loading) return null;
-  
-  // Only Google login is mandatory, profile setup is optional
+  if (!user) return <Navigate to="/login" replace />;
+
   return <>{children}</>;
 }
 
-function MandatoryAuthModal() {
-  const { signInWithGoogle } = useAuth();
-  
-  return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-md p-6 text-center">
-      <div className="brute-card bg-surface p-10 md:p-16 max-w-xl border-4 border-black relative">
-        <div className="absolute -top-8 -left-8 w-20 h-20 bg-primary border-4 border-black flex items-center justify-center font-black text-white text-3xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          A|I
-        </div>
-        
-        <div className="mb-8">
-          <h2 className="text-2xl md:text-3xl font-headline font-black uppercase leading-none tracking-tighter mb-2">
-            Welcome To
-          </h2>
-          <h2 className="text-5xl md:text-7xl font-headline font-black uppercase leading-none tracking-tighter text-primary italic">
-            ALPHA IITIAN
-          </h2>
-        </div>
-        
-        <p className="text-[10px] md:text-[12px] font-bold text-black/60 mb-10 uppercase tracking-[0.2em] whitespace-nowrap">
-          Sign in or create an account using Google
-        </p>
+function HomeRoute() {
+  const { loading, isManager } = useAuth();
 
-        <BruteButton 
-          variant="primary" 
-          className="w-full text-2xl py-6 animate-pulse" 
-          onClick={signInWithGoogle}
-        >
-          Continue with Google
-        </BruteButton>
+  if (loading) return null;
 
-        <div className="mt-12 flex flex-col items-center gap-4">
-          <div className="h-[2px] w-24 bg-black/10"></div>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40">
-            Alpha IITIAN Identity Protocol v1.0
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  return isManager ? <Navigate to="/manager" replace /> : <LandingPage />;
 }
 
 function UserMenu() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isManager, isProfileComplete } = useAuth();
+  const { cartCount } = useCart();
   const navigate = useNavigate();
 
-  if (!user) return null; // Modal handles login
+  if (!user) return null;
 
   return (
     <div className="flex items-center gap-6">
@@ -93,7 +60,31 @@ function UserMenu() {
           {profile?.name?.split(' ')[0] || 'Member'}
         </span>
       </div>
-      {profile?.role === 'MANAGER' && (
+      {!isManager && (
+        <button
+          onClick={() => navigate('/checkout')}
+          className="text-xs font-black uppercase tracking-widest bg-black text-white px-3 py-2 border-2 border-black hover:bg-primary hover:border-primary transition-all hidden sm:block"
+        >
+          Cart {cartCount > 0 ? `(${cartCount})` : ''}
+        </button>
+      )}
+      {!isManager && (
+        <button
+          onClick={() => navigate('/orders')}
+          className="text-xs font-black uppercase tracking-widest bg-white text-black px-3 py-2 border-2 border-black hover:bg-primary hover:text-white transition-all hidden sm:block"
+        >
+          Orders
+        </button>
+      )}
+      {!isProfileComplete && (
+        <button
+          onClick={() => navigate('/setup-profile')}
+          className="text-xs font-black uppercase tracking-widest bg-white text-black px-3 py-2 border-2 border-primary hover:bg-primary hover:text-white transition-all hidden sm:block"
+        >
+          Complete Profile
+        </button>
+      )}
+      {isManager && (
         <button 
           onClick={() => navigate('/manager')}
           className="text-xs font-black uppercase tracking-widest bg-primary text-black px-3 py-2 border-2 border-primary hover:bg-white hover:text-black transition-all shadow-[2px_2px_0px_0px_white] hidden sm:block"
@@ -116,17 +107,15 @@ function AppContent() {
   const { user, loading } = useAuth();
   const location = useLocation();
   const isProfileSetup = location.pathname === '/setup-profile';
+  const isLoginPage = location.pathname === '/login';
+  const showChrome = !isProfileSetup && !isLoginPage;
 
   return (
     <div className="min-h-screen bg-black selection:bg-primary selection:text-white flex flex-col">
       <GrungeOverlay />
       <SupportWidget />
-      
-      {/* Global Mandatory Login Modal */}
-      {!user && !loading && <MandatoryAuthModal />}
-      
-      {/* Navigation - Hidden during setup */}
-      {!isProfileSetup && (
+
+      {showChrome && (
         <nav className="fixed top-0 w-full z-50 border-b-4 border-black bg-surface text-black px-6 py-4">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <Link to="/" className="flex items-center gap-2">
@@ -155,14 +144,16 @@ function AppContent() {
         </nav>
       )}
 
-      {/* Main Routing Content */}
-      <main className={`flex-grow ${!isProfileSetup ? 'pt-20' : ''}`}>
+      <main className={`flex-grow ${showChrome ? 'pt-20' : ''}`}>
         <Routes>
-          <Route path="/" element={<GuardedRoute><LandingPage /></GuardedRoute>} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<GuardedRoute><HomeRoute /></GuardedRoute>} />
           <Route path="/courses" element={<GuardedRoute><AllCoursesPage /></GuardedRoute>} />
           <Route path="/course/:id" element={<GuardedRoute><CoursePage /></GuardedRoute>} />
+          <Route path="/checkout" element={<GuardedRoute><BuyPage /></GuardedRoute>} />
           <Route path="/buy" element={<GuardedRoute><BuyPage /></GuardedRoute>} />
           <Route path="/setup-profile" element={<ProfileSetup />} />
+          <Route path="/orders" element={<GuardedRoute><OrdersPage /></GuardedRoute>} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/refund" element={<RefundPage />} />
@@ -175,15 +166,15 @@ function AppContent() {
               <Route index element={<Dashboard />} />
               <Route path="users" element={<Users />} />
               <Route path="courses" element={<Courses />} />
-              <Route path="logs" element={<ActivityLogs />} />
+              <Route path="orders" element={<Orders />} />
+              <Route path="activity" element={<ActivityLogs />} />
               <Route path="support" element={<Support />} />
             </Route>
           </Route>
         </Routes>
       </main>
 
-      {/* Footer - Hidden during setup */}
-      {!isProfileSetup && (
+      {showChrome && (
         <footer className="bg-surface text-black border-t-8 border-black py-20 px-6 mt-auto">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
             <div className="flex flex-col items-center md:items-start md:col-span-2">
@@ -230,9 +221,11 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <CartProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </CartProvider>
     </AuthProvider>
   );
 }

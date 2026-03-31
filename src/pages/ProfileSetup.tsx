@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import BruteButton from '../components/BruteButton';
+import { isProfileComplete } from '../utils/profile';
 
 function ProfileSetup() {
-  const { user, profile, refreshProfile, loading } = useAuth();
+  const { user, profile, saveProfile, loading } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,9 +19,8 @@ function ProfileSetup() {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        navigate('/');
+        navigate('/login');
       } else if (profile) {
-        // Pre-fill whatever data we already have
         setFormData(prev => ({
           ...prev,
           name: profile.name || prev.name,
@@ -29,8 +28,7 @@ function ProfileSetup() {
           gender: profile.gender || prev.gender
         }));
 
-        // If completely finished, redirect out
-        if (profile.name && profile.phone && profile.gender) {
+        if (isProfileComplete(profile)) {
           navigate('/');
         }
       }
@@ -48,22 +46,7 @@ function ProfileSetup() {
     setError(null);
     setIsSubmitting(true);
     try {
-      // Create/update profile with optional fields
-      const { error: upsertError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          email: user.email!,
-          name: formData.name || null,
-          phone: formData.phone || null,
-          gender: formData.gender || null,
-          role: 'STUDENT',
-          updated_at: new Date().toISOString()
-        });
-
-      if (upsertError) throw upsertError;
-
-      await refreshProfile();
+      await saveProfile(formData);
       navigate('/');
     } catch (err: any) {
       console.error('Error saving profile:', err);
@@ -71,10 +54,6 @@ function ProfileSetup() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleSkip = () => {
-    navigate('/');
   };
 
   if (loading) {
@@ -92,7 +71,7 @@ function ProfileSetup() {
       <div className="brute-card bg-surface p-10 text-black border-b-8 border-black">
         <h1 className="text-4xl font-black font-headline uppercase mb-4 text-center">Complete Your Profile</h1>
         <p className="text-black/60 font-bold mb-8 text-center italic uppercase tracking-widest text-sm">
-          All fields are optional - you can skip for now
+          Email comes from Google and cannot be edited here
         </p>
 
         {error && (
@@ -102,6 +81,16 @@ function ProfileSetup() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Email</label>
+            <input
+              type="email"
+              value={profile?.email || user?.email || ''}
+              disabled
+              className="w-full bg-black/5 border-2 border-black p-3 font-bold text-black/60 cursor-not-allowed"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Full Name</label>
             <input 
@@ -147,20 +136,11 @@ function ProfileSetup() {
           <div className="pt-6 flex gap-4">
             <BruteButton 
               variant="primary" 
-              className="flex-1 text-xl py-4" 
+              className="flex-1 text-xl py-4"
               type="submit"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Saving...' : 'Save Profile'}
-            </BruteButton>
-            <BruteButton 
-              variant="secondary" 
-              className="flex-1 text-xl py-4" 
-              type="button"
-              onClick={handleSkip}
-              disabled={isSubmitting}
-            >
-              Skip for Now
             </BruteButton>
           </div>
         </form>
