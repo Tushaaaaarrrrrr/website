@@ -5,6 +5,7 @@ import { Edit2, Trash2, Plus, Star } from 'lucide-react';
 
 export interface Course {
   id: string;
+  lms_id?: string;
   name: string;
   description: string;
   price: number;
@@ -24,7 +25,7 @@ export default function Courses() {
   
   // Form State
   const [formData, setFormData] = useState<Partial<Course>>({
-    id: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: ''
+    id: '', lms_id: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: ''
   });
 
   const fetchCourses = async () => {
@@ -44,7 +45,7 @@ export default function Courses() {
       setFormData(course);
     } else {
       setEditingCourse(null);
-      setFormData({ id: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: '' });
+      setFormData({ id: '', lms_id: '', name: '', description: '', price: 0, isPinned: false, learn: [], who: '', outcomes: '' });
     }
     setIsModalOpen(true);
   };
@@ -155,6 +156,14 @@ export default function Courses() {
                   <input required placeholder="e.g. python-basics" className="w-full border-2 border-black bg-white p-3 font-mono text-sm uppercase" value={formData.id} onChange={(e) => setFormData({...formData, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})} disabled={!!editingCourse} />
                   {!!editingCourse && <p className="text-[10px] text-primary mt-1 font-bold uppercase">ID cannot be changed</p>}
                 </div>
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-1">LMS Integration ID (CUID)</label>
+                  <input placeholder="e.g. clm123abc..." className="w-full border-2 border-black bg-white p-3 font-mono text-sm" value={formData.lms_id || ''} onChange={(e) => setFormData({...formData, lms_id: e.target.value})} />
+                  <p className="text-[10px] text-black/40 mt-1 font-bold uppercase">Internal LMS course link</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-black uppercase tracking-widest mb-1">Price (₹)</label>
                   <input required type="number" min="0" className="w-full border-2 border-black bg-white p-3 font-black text-primary text-xl" value={formData.price} onChange={(e) => setFormData({...formData, price: Number(e.target.value)})} />
