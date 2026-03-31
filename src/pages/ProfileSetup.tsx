@@ -20,9 +20,19 @@ function ProfileSetup() {
     if (!loading) {
       if (!user) {
         navigate('/');
-      } else if (profile && profile.name && profile.phone) {
-        // Profile already complete, send them back
-        navigate('/');
+      } else if (profile) {
+        // Pre-fill whatever data we already have
+        setFormData(prev => ({
+          ...prev,
+          name: profile.name || prev.name,
+          phone: profile.phone || prev.phone,
+          gender: profile.gender || prev.gender
+        }));
+
+        // If completely finished, redirect out
+        if (profile.name && profile.phone && profile.gender) {
+          navigate('/');
+        }
       }
     }
   }, [user, profile, loading, navigate]);
