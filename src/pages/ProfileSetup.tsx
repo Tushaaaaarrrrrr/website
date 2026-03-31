@@ -46,22 +46,17 @@ function ProfileSetup() {
     if (!user) return;
 
     setError(null);
-    if (!formData.name || !formData.phone || !formData.gender) {
-      setError("Please fill in all fields.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      // Create user first if it doesn't exist yet, using UPSERT
+      // Create/update profile with optional fields
       const { error: upsertError } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           email: user.email!,
-          name: formData.name,
-          phone: formData.phone,
-          gender: formData.gender,
+          name: formData.name || null,
+          phone: formData.phone || null,
+          gender: formData.gender || null,
           role: 'STUDENT',
           updated_at: new Date().toISOString()
         });
@@ -76,6 +71,10 @@ function ProfileSetup() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSkip = () => {
+    navigate('/');
   };
 
   if (loading) {
@@ -93,7 +92,7 @@ function ProfileSetup() {
       <div className="brute-card bg-surface p-10 text-black border-b-8 border-black">
         <h1 className="text-4xl font-black font-headline uppercase mb-4 text-center">Complete Your Profile</h1>
         <p className="text-black/60 font-bold mb-8 text-center italic uppercase tracking-widest text-sm">
-          Please fill in these details to continue
+          All fields are optional - you can skip for now
         </p>
 
         {error && (
@@ -104,41 +103,38 @@ function ProfileSetup() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Full Name *</label>
+            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Full Name</label>
             <input 
               type="text" 
               name="name" 
               value={formData.name} 
               onChange={handleChange}
               disabled={isSubmitting}
-              required
               className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary"
               placeholder="John Doe"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Phone Number *</label>
+            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Phone Number</label>
             <input 
               type="tel" 
               name="phone" 
               value={formData.phone} 
               onChange={handleChange}
               disabled={isSubmitting}
-              required
               className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary"
               placeholder="10 digit mobile number"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Gender *</label>
+            <label className="block text-sm font-black uppercase mb-2 tracking-widest text-black/70">Gender</label>
             <select 
               name="gender" 
               value={formData.gender} 
               onChange={handleChange}
               disabled={isSubmitting}
-              required
               className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary"
             >
               <option value="">Select Gender</option>
@@ -148,14 +144,23 @@ function ProfileSetup() {
             </select>
           </div>
 
-          <div className="pt-6">
+          <div className="pt-6 flex gap-4">
             <BruteButton 
               variant="primary" 
-              className="w-full text-xl py-4" 
+              className="flex-1 text-xl py-4" 
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Saving...' : 'Finish Setup'}
+              {isSubmitting ? 'Saving...' : 'Save Profile'}
+            </BruteButton>
+            <BruteButton 
+              variant="secondary" 
+              className="flex-1 text-xl py-4" 
+              type="button"
+              onClick={handleSkip}
+              disabled={isSubmitting}
+            >
+              Skip for Now
             </BruteButton>
           </div>
         </form>

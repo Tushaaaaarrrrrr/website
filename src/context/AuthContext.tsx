@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const subscriptionRef = React.useRef<any>(null);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -74,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
+    subscriptionRef.current = subscription;
     return () => subscription.unsubscribe();
   }, []);
 
@@ -88,23 +90,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    // Immediately clear state to ensure UI updates immediately
-    setUser(null);
-    setProfile(null);
-    
-    // Attempt to sign out from Supabase with a timeout
     try {
+      // Unsubscribe from auth listener first to prevent conflicts
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+      
+      // Immediately clear state
+      setUser(null);
+      setProfile(null);
+      
+      // Clear all browser storage (prevents cache issues)
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Attempt to sign out from Supabase with a short timeout
       const signOutPromise = supabase.auth.signOut();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Signout timeout')), 3000)
+        setTimeout(() => reject(new Error('timeout')), 2000)
       );
       await Promise.race([signOutPromise, timeoutPromise]);
     } catch (err) {
       console.error('Logout error:', err);
+    } finally {
+      // Always redirect - this ensures we exit no matter what
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
     }
-    
-    // HARD REDIRECT ensures all listeners/states are fresh and takes user to home
-    window.location.href = '/';
   };
 
   const refreshProfile = async () => {

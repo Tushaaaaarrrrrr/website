@@ -25,26 +25,15 @@ import SupportHistory from './pages/SupportHistory';
 import AllCoursesPage from './pages/AllCoursesPage';
 
 /**
- * Guard Component: Redirects to /setup-profile if authenticated but profile missing.
- * Prevents browsing until profile is complete.
+ * Guard Component: Only ensures user is logged in via Google.
+ * Profile creation is OPTIONAL, not mandatory.
  */
 function GuardedRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    if (!loading && user) {
-      const isProfileIncomplete = !profile || !profile.name || !profile.phone;
-      const isOnSetupPage = location.pathname === '/setup-profile';
-      
-      if (isProfileIncomplete && !isOnSetupPage) {
-        navigate('/setup-profile', { replace: true });
-      }
-    }
-  }, [user, profile, loading, location.pathname, navigate]);
-
+  const { user, loading } = useAuth();
+  
   if (loading) return null;
+  
+  // Only Google login is mandatory, profile setup is optional
   return <>{children}</>;
 }
 
