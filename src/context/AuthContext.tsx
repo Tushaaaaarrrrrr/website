@@ -88,18 +88,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Immediately clear state to ensure UI updates immediately
+    setUser(null);
+    setProfile(null);
+    
+    // Attempt to sign out from Supabase with a timeout
     try {
-      await supabase.auth.signOut();
-      // Manually clear state to ensure UI updates immediately
-      setUser(null);
-      setProfile(null);
-      // HARD REDIRECT ensures all listeners/states are fresh and takes user to home
-      window.location.href = '/';
+      const signOutPromise = supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Signout timeout')), 3000)
+      );
+      await Promise.race([signOutPromise, timeoutPromise]);
     } catch (err) {
       console.error('Logout error:', err);
-      // Fallback redirect even on error
-      window.location.href = '/';
     }
+    
+    // HARD REDIRECT ensures all listeners/states are fresh and takes user to home
+    window.location.href = '/';
   };
 
   const refreshProfile = async () => {
