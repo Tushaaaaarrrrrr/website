@@ -38,25 +38,59 @@ function GuardedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function UserMenu() {
-  const { user, profile, signInWithGoogle, signOut } = useAuth();
+function MandatoryAuthModal() {
+  const { signInWithGoogle } = useAuth();
+  
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-md p-6 text-center">
+      <div className="brute-card bg-surface p-10 md:p-16 max-w-xl border-4 border-black relative">
+        <div className="absolute -top-8 -left-8 w-20 h-20 bg-primary border-4 border-black flex items-center justify-center font-black text-white text-3xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          A|I
+        </div>
+        
+        <h2 className="text-5xl font-headline font-black uppercase mb-8 leading-none tracking-tighter">
+          ACCESS <span className="text-primary italic">LOCKED</span>
+        </h2>
+        
+        <p className="text-xl font-bold text-black mb-10 uppercase leading-tight tracking-tight px-4">
+          Please click on continue with Google to sign in or create an account. Just click there.
+        </p>
 
-  if (!user) {
-    return (
-      <BruteButton variant="primary" className="px-4 py-2 text-sm" onClick={signInWithGoogle}>
-        Login
-      </BruteButton>
-    );
-  }
+        <BruteButton 
+          variant="primary" 
+          className="w-full text-2xl py-6 animate-pulse" 
+          onClick={signInWithGoogle}
+        >
+          Continue with Google
+        </BruteButton>
+
+        <div className="mt-12 flex flex-col items-center gap-4">
+          <div className="h-[2px] w-24 bg-black/10"></div>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40">
+            Alpha IITIAN Identity Protocol v1.0
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserMenu() {
+  const { user, profile, signOut } = useAuth();
+
+  if (!user) return null; // Modal handles login
 
   return (
-    <div className="flex items-center gap-4">
-      <span className="text-xs font-black uppercase tracking-tighter hidden lg:block">
-        HI, <span className="text-primary italic">{profile?.name?.split(' ')[0] || 'IITIAN'}</span>
-      </span>
+    <div className="flex items-center gap-6">
+      <div className="flex flex-col items-end">
+        <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none">Signed In As</span>
+        <span className="text-sm font-black uppercase tracking-tighter">
+          {profile?.name?.split(' ')[0] || 'Member'}
+        </span>
+      </div>
       <button 
         onClick={signOut}
-        className="text-xs font-black uppercase tracking-widest hover:text-primary transition-colors border-b-2 border-transparent hover:border-primary"
+        className="text-xs font-black uppercase tracking-widest bg-black text-white px-3 py-2 border-2 border-primary hover:bg-primary transition-all shadow-[2px_2px_0px_0px_white]"
       >
         Sign Out
       </button>
@@ -64,103 +98,110 @@ function UserMenu() {
   );
 }
 
-function App() {
+function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const { user, loading } = useAuth();
 
+  return (
+    <div className="min-h-screen bg-black selection:bg-primary selection:text-white flex flex-col">
+      <GrungeOverlay />
+      
+      {/* Global Mandatory Login Modal */}
+      {!user && !loading && <MandatoryAuthModal />}
+      
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 border-b-4 border-black bg-surface text-black px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-primary flex items-center justify-center font-black text-white border-2 border-black">
+              A|I
+            </div>
+            <span className="text-2xl font-black font-headline uppercase tracking-tighter">
+              Alpha <span className="text-primary italic">IITIAN</span>
+            </span>
+          </Link>
+          
+          <div className="hidden md:flex items-center gap-8 font-bold uppercase tracking-widest text-sm">
+            <a href="/#about" className="hover:text-primary transition-colors">About</a>
+            <a href="/#courses" className="hover:text-primary transition-colors">Courses</a>
+            <a href="/#results" className="hover:text-primary transition-colors">Results</a>
+            <UserMenu />
+          </div>
+
+          <button 
+            className="md:hidden p-2 brute-card bg-surface"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Routing Content */}
+      <main className="flex-grow pt-20">
+        <Routes>
+          <Route path="/" element={<GuardedRoute><LandingPage /></GuardedRoute>} />
+          <Route path="/course/:id" element={<GuardedRoute><CoursePage /></GuardedRoute>} />
+          <Route path="/buy" element={<GuardedRoute><BuyPage /></GuardedRoute>} />
+          <Route path="/setup-profile" element={<ProfileSetup />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/refund" element={<RefundPage />} />
+          <Route path="/shipping" element={<ShippingPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+        </Routes>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-surface text-black border-t-8 border-black py-20 px-6 mt-auto">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div className="flex flex-col items-center md:items-start md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+               <div className="w-12 h-12 bg-black text-white flex items-center justify-center font-black text-xl">A|I</div>
+               <span className="text-3xl font-black font-headline uppercase">Alpha IITIAN</span>
+            </div>
+            <p className="text-black/50 font-bold text-sm max-w-xs text-center md:text-left mb-6">
+              &copy; 2027 ALPHA IITIAN. <br/>
+              DATA SCIENCE PROGRAM. <br/>
+              ALL RIGHTS RESERVED.
+            </p>
+            <div className="flex gap-4">
+              <BruteButton variant="black" className="px-4 py-2">
+                <span className="text-xl">𝕏</span>
+              </BruteButton>
+              <BruteButton variant="black" className="px-4 py-2">
+                <span className="text-xl">IG</span>
+              </BruteButton>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-4 font-black uppercase tracking-widest text-sm">
+            <h4 className="text-black/50 mb-2">Platform</h4>
+            <a href="/#courses" className="hover:text-primary">Courses</a>
+            <a href="/#about" className="hover:text-primary">About Us</a>
+          </div>
+
+          <div className="flex flex-col gap-4 font-black uppercase tracking-widest text-sm">
+            <h4 className="text-black/50 mb-2">Legal & Compliance</h4>
+            <Link to="/privacy" className="hover:text-primary">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-primary">Terms & Conditions</Link>
+            <Link to="/refund" className="hover:text-primary">Refund Policy</Link>
+            <Link to="/shipping" className="hover:text-primary">Shipping & Delivery</Link>
+            <Link to="/contact" className="hover:text-primary">Contact Us</Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-      <div className="min-h-screen bg-black selection:bg-primary selection:text-white flex flex-col">
-        <GrungeOverlay />
-        
-        {/* Navigation */}
-        <nav className="fixed top-0 w-full z-50 border-b-4 border-black bg-surface text-black px-6 py-4">
-          <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-primary flex items-center justify-center font-black text-white border-2 border-black">
-                A|I
-              </div>
-              <span className="text-2xl font-black font-headline uppercase tracking-tighter">
-                Alpha <span className="text-primary italic">IITIAN</span>
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center gap-8 font-bold uppercase tracking-widest text-sm">
-              <a href="/#about" className="hover:text-primary transition-colors">About</a>
-              <a href="/#courses" className="hover:text-primary transition-colors">Courses</a>
-              <a href="/#results" className="hover:text-primary transition-colors">Results</a>
-              <UserMenu />
-              <a href="/#courses">
-                <BruteButton variant="black" className="px-6 py-2 text-sm">Join Now</BruteButton>
-              </a>
-            </div>
-
-            <button 
-              className="md:hidden p-2 brute-card bg-surface"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X /> : <Menu />}
-            </button>
-          </div>
-        </nav>
-
-        {/* Main Routing Content */}
-        <main className="flex-grow pt-20">
-          <Routes>
-            <Route path="/" element={<GuardedRoute><LandingPage /></GuardedRoute>} />
-            <Route path="/course/:id" element={<GuardedRoute><CoursePage /></GuardedRoute>} />
-            <Route path="/buy" element={<GuardedRoute><BuyPage /></GuardedRoute>} />
-            <Route path="/setup-profile" element={<ProfileSetup />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/refund" element={<RefundPage />} />
-            <Route path="/shipping" element={<ShippingPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-          </Routes>
-        </main>
-
-        {/* Footer */}
-        <footer className="bg-surface text-black border-t-8 border-black py-20 px-6 mt-auto">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
-            <div className="flex flex-col items-center md:items-start md:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                 <div className="w-12 h-12 bg-black text-white flex items-center justify-center font-black text-xl">A|I</div>
-                 <span className="text-3xl font-black font-headline uppercase">Alpha IITIAN</span>
-              </div>
-              <p className="text-black/50 font-bold text-sm max-w-xs text-center md:text-left mb-6">
-                &copy; 2027 ALPHA IITIAN. <br/>
-                DATA SCIENCE PROGRAM. <br/>
-                ALL RIGHTS RESERVED.
-              </p>
-              <div className="flex gap-4">
-                <BruteButton variant="black" className="px-4 py-2">
-                  <span className="text-xl">𝕏</span>
-                </BruteButton>
-                <BruteButton variant="black" className="px-4 py-2">
-                  <span className="text-xl">IG</span>
-                </BruteButton>
-              </div>
-            </div>
-            
-            <div className="flex flex-col gap-4 font-black uppercase tracking-widest text-sm">
-              <h4 className="text-black/50 mb-2">Platform</h4>
-              <a href="/#courses" className="hover:text-primary">Courses</a>
-              <a href="/#about" className="hover:text-primary">About Us</a>
-            </div>
-
-            <div className="flex flex-col gap-4 font-black uppercase tracking-widest text-sm">
-              <h4 className="text-black/50 mb-2">Legal & Compliance</h4>
-              <Link to="/privacy" className="hover:text-primary">Privacy Policy</Link>
-              <Link to="/terms" className="hover:text-primary">Terms & Conditions</Link>
-              <Link to="/refund" className="hover:text-primary">Refund Policy</Link>
-              <Link to="/shipping" className="hover:text-primary">Shipping & Delivery</Link>
-              <Link to="/contact" className="hover:text-primary">Contact Us</Link>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </BrowserRouter>
-  </AuthProvider>
+        <AppContent />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
