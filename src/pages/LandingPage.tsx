@@ -21,9 +21,21 @@ import TiltCard from '../components/TiltCard';
 import NeonGlowButton from '../components/NeonGlowButton';
 import InteractiveFolder from '../components/InteractiveFolder';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 function LandingPage() {
   const { user, signInWithGoogle } = useAuth();
+  const [courses, setCourses] = React.useState<any[]>([]);
+  const [loadingCourses, setLoadingCourses] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchCourses() {
+      const { data } = await supabase.from('courses').select('*').eq('isPinned', true).limit(3);
+      if (data) setCourses(data);
+      setLoadingCourses(false);
+    }
+    fetchCourses();
+  }, []);
 
   return (
     <>
@@ -281,18 +293,22 @@ function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { id: "python-data-science", title: "Python for Data Science", price: "₹1", icon: <Database /> },
-              { id: "deep-learning", title: "Deep Learning Mastery", price: "₹399", icon: <Layers /> },
-              { id: "advanced-ai", title: "Advanced AI & ML", price: "₹499", icon: <Shield /> }
-            ].map((course, i) => (
-              <div key={i} className="brute-card flex flex-col group hover:-translate-y-2 transition-transform">
+            {loadingCourses ? (
+              <div className="col-span-full py-12 text-center text-primary font-black uppercase tracking-widest animate-pulse">
+                Fetching Global Registry...
+              </div>
+            ) : courses.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-black/40 font-black uppercase tracking-widest">
+                Registry Offline
+              </div>
+            ) : courses.map((course, i) => (
+              <div key={course.id} className="brute-card flex flex-col group hover:-translate-y-2 transition-transform">
                 <div className="p-8 border-b-4 border-black bg-white/5 group-hover:bg-primary/5 transition-colors">
                   <div className="w-16 h-16 bg-black text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                    {course.icon}
+                    {i % 3 === 0 ? <Database /> : i % 3 === 1 ? <Layers /> : <Shield />}
                   </div>
-                  <h3 className="text-3xl font-black uppercase leading-tight mb-2">{course.title}</h3>
-                  <div className="text-primary font-black text-4xl italic group-hover:scale-105 transition-transform origin-left">{course.price}</div>
+                  <h3 className="text-3xl font-black uppercase leading-tight mb-2 truncate" title={course.name}>{course.name}</h3>
+                  <div className="text-primary font-black text-4xl italic group-hover:scale-105 transition-transform origin-left">₹{course.price}</div>
                 </div>
                 <div className="p-8 bg-surface">
                   <ul className="space-y-3 mb-8">

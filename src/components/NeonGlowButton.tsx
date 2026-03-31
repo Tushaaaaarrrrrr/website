@@ -16,7 +16,7 @@ const NeonGlowButton: React.FC<NeonGlowButtonProps> = ({
   const [displayText, setDisplayText] = useState("");
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     if (isHovered) {
       let currentText = "";
       let index = 0;

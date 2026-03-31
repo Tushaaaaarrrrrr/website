@@ -3,8 +3,8 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, AlertCircle, LogOut, User as UserIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BruteButton from '../components/BruteButton';
-import { COURSE_PRICING } from '../data/coursePricing';
 import { enrollAfterPurchase } from '../services/enrollService';
+import { logActivity } from '../services/activityLogger';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -21,10 +21,31 @@ function BuyPage() {
   const searchParams = new URLSearchParams(location.search);
   const courseId = searchParams.get('course');
   
-  // Validate course from query string immediately
-  const course = courseId ? COURSE_PRICING[courseId] : null;
-
   const { user, profile, signOut, refreshProfile } = useAuth();
+  
+  const [course, setCourse] = useState<{ id: string, name: string, price: number, display: string } | null>(null);
+  const [loadingCourse, setLoadingCourse] = useState(true);
+
+  useEffect(() => {
+    async function fetchCourse() {
+      if (!courseId) {
+        setLoadingCourse(false);
+        return;
+      }
+      const { data } = await supabase.from('courses').select('*').eq('id', courseId).single();
+      if (data) {
+        setCourse({ ...data, display: `₹${data.price}` });
+        logActivity({
+          action: 'VISIT_CHECKOUT',
+          courseId,
+          email: profile?.email || user?.email || undefined,
+          userId: user?.id
+        });
+      }
+      setLoadingCourse(false);
+    }
+    fetchCourse();
+  }, [courseId, profile?.email, user?.email, user?.id]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -58,14 +79,14 @@ function BuyPage() {
   } | null>(null);
 
   useEffect(() => {
-    // Scroll to top
     window.scrollTo(0, 0);
-    
-    // Redirect back to courses if course is invalid
-    if (!course) {
+  }, []);
+
+  useEffect(() => {
+    if (!loadingCourse && !course) {
       navigate('/#courses');
     }
-  }, [course, navigate]);
+  }, [course, loadingCourse, navigate]);
 
   // Sanitize simple inputs
   const sanitize = (val: string) => {
@@ -141,6 +162,13 @@ function BuyPage() {
 
       if (result.success) {
         setEnrollStatus('success');
+        logActivity({ 
+          action: 'PURCHASE', 
+          courseId: courseId!, 
+          email: formData.email, 
+          userId: user?.id || undefined, 
+          metadata: { orderId: details.razorpay_order_id } 
+        });
       } else {
         setEnrollStatus('idle'); // Allow "Retry Enrollment"
         setError(result.message || "Payment succeeded but enrollment failed. Please click 'Retry Enrollment'.");
@@ -215,6 +243,13 @@ function BuyPage() {
       rzp.on('payment.failed', function (response: any) {
         setIsProcessing(false);
         setError("Payment failed: " + response.error.description);
+        logActivity({ 
+          action: 'PAYMENT_FAILED', 
+          courseId: courseId!, 
+          email: formData.email, 
+          userId: user?.id || undefined, 
+          metadata: { error: response.error } 
+        });
       });
 
       rzp.open();
@@ -225,6 +260,7 @@ function BuyPage() {
     }
   };
 
+  if (loadingCourse) return <div className="min-h-screen bg-black flex items-center justify-center text-primary font-black uppercase text-2xl animate-pulse">Initializing Checkout...</div>;
   if (!course) return null; // Wait for redirect to happen
 
   if (enrollStatus === 'success') {

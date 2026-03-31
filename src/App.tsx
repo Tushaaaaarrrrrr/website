@@ -13,6 +13,16 @@ import ContactPage from './pages/ContactPage';
 import BuyPage from './pages/BuyPage';
 import ProfileSetup from './pages/ProfileSetup';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ManagerRoute from './components/ManagerRoute';
+import ManagerLayout from './pages/manager/ManagerLayout';
+import Dashboard from './pages/manager/Dashboard';
+import Users from './pages/manager/Users';
+import Courses from './pages/manager/Courses';
+import ActivityLogs from './pages/manager/ActivityLogs';
+import Support from './pages/manager/Support';
+import SupportWidget from './components/SupportWidget';
+import SupportHistory from './pages/SupportHistory';
+import AllCoursesPage from './pages/AllCoursesPage';
 
 /**
  * Guard Component: Redirects to /setup-profile if authenticated but profile missing.
@@ -48,12 +58,12 @@ function MandatoryAuthModal() {
           A|I
         </div>
         
-        <h2 className="text-5xl font-headline font-black uppercase mb-8 leading-none tracking-tighter">
-          ACCESS <span className="text-primary italic">LOCKED</span>
+        <h2 className="text-4xl md:text-5xl font-headline font-black uppercase mb-8 leading-none tracking-tighter">
+          Welcome To <br className="md:hidden" /><span className="text-primary italic">ALPHA IITIAN</span>
         </h2>
         
-        <p className="text-xl font-bold text-black mb-10 uppercase leading-tight tracking-tight px-4">
-          Please click on continue with Google to sign in or create an account. Just click there.
+        <p className="text-sm md:text-base font-bold text-black/70 mb-10 uppercase leading-relaxed tracking-widest px-4">
+          Sign in or create an account using Google
         </p>
 
         <BruteButton 
@@ -77,17 +87,26 @@ function MandatoryAuthModal() {
 
 function UserMenu() {
   const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null; // Modal handles login
 
   return (
     <div className="flex items-center gap-6">
-      <div className="flex flex-col items-end">
+      <div className="flex flex-col items-end hidden sm:flex">
         <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none">Signed In As</span>
         <span className="text-sm font-black uppercase tracking-tighter">
           {profile?.name?.split(' ')[0] || 'Member'}
         </span>
       </div>
+      {profile?.role === 'MANAGER' && (
+        <button 
+          onClick={() => navigate('/manager')}
+          className="text-xs font-black uppercase tracking-widest bg-primary text-black px-3 py-2 border-2 border-primary hover:bg-white hover:text-black transition-all shadow-[2px_2px_0px_0px_white] hidden sm:block"
+        >
+          Manager
+        </button>
+      )}
       <button 
         onClick={signOut}
         className="text-xs font-black uppercase tracking-widest bg-black text-white px-3 py-2 border-2 border-primary hover:bg-primary transition-all shadow-[2px_2px_0px_0px_white]"
@@ -105,6 +124,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-black selection:bg-primary selection:text-white flex flex-col">
       <GrungeOverlay />
+      <SupportWidget />
       
       {/* Global Mandatory Login Modal */}
       {!user && !loading && <MandatoryAuthModal />}
@@ -123,7 +143,7 @@ function AppContent() {
           
           <div className="hidden md:flex items-center gap-8 font-bold uppercase tracking-widest text-sm">
             <a href="/#about" className="hover:text-primary transition-colors">About</a>
-            <a href="/#courses" className="hover:text-primary transition-colors">Courses</a>
+            <Link to="/courses" className="hover:text-primary transition-colors">Courses</Link>
             <a href="/#results" className="hover:text-primary transition-colors">Results</a>
             <UserMenu />
           </div>
@@ -141,6 +161,7 @@ function AppContent() {
       <main className="flex-grow pt-20">
         <Routes>
           <Route path="/" element={<GuardedRoute><LandingPage /></GuardedRoute>} />
+          <Route path="/courses" element={<GuardedRoute><AllCoursesPage /></GuardedRoute>} />
           <Route path="/course/:id" element={<GuardedRoute><CoursePage /></GuardedRoute>} />
           <Route path="/buy" element={<GuardedRoute><BuyPage /></GuardedRoute>} />
           <Route path="/setup-profile" element={<ProfileSetup />} />
@@ -149,6 +170,17 @@ function AppContent() {
           <Route path="/refund" element={<RefundPage />} />
           <Route path="/shipping" element={<ShippingPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/support" element={<GuardedRoute><SupportHistory /></GuardedRoute>} />
+          
+          <Route path="/manager" element={<ManagerRoute />}>
+            <Route element={<ManagerLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="users" element={<Users />} />
+              <Route path="courses" element={<Courses />} />
+              <Route path="logs" element={<ActivityLogs />} />
+              <Route path="support" element={<Support />} />
+            </Route>
+          </Route>
         </Routes>
       </main>
 
