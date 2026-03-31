@@ -20,8 +20,11 @@ import AnimatedStepper from '../components/AnimatedStepper';
 import TiltCard from '../components/TiltCard';
 import NeonGlowButton from '../components/NeonGlowButton';
 import InteractiveFolder from '../components/InteractiveFolder';
+import { useAuth } from '../context/AuthContext';
 
 function LandingPage() {
+  const { user, signInWithGoogle } = useAuth();
+
   return (
     <>
       {/* Hero Section */}
@@ -49,9 +52,15 @@ function LandingPage() {
               Build real-world ML systems. We forge industry-ready data scientists through rigorous curriculum, hands-on analytics, and career-focused learning.
             </p>
             <div className="flex flex-wrap gap-6">
-              <a href="#courses">
-                <BruteButton variant="primary" isTyping>Explore Courses</BruteButton>
-              </a>
+              {!user ? (
+                <BruteButton variant="primary" onClick={signInWithGoogle}>
+                  Continue with Google
+                </BruteButton>
+              ) : (
+                <a href="#courses">
+                  <BruteButton variant="primary" isTyping>Explore Registry</BruteButton>
+                </a>
+              )}
               <a href="#about">
                 <BruteButton variant="outline">Learn More</BruteButton>
               </a>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, AlertCircle, LogOut, User as UserIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BruteButton from '../components/BruteButton';
 import { COURSE_PRICING } from '../data/coursePricing';
 import { enrollAfterPurchase } from '../services/enrollService';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
 // Razorpay's window interface extension
 declare global {
@@ -22,12 +24,28 @@ function BuyPage() {
   // Validate course from query string immediately
   const course = courseId ? COURSE_PRICING[courseId] : null;
 
+  const { user, profile, signOut, refreshProfile } = useAuth();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     gender: ''
   });
+
+  // Pre-fill form once profile is loaded
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        gender: profile.gender || ''
+      });
+    } else if (user) {
+      setFormData(prev => ({ ...prev, email: user.email || '' }));
+    }
+  }, [profile, user]);
 
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -97,6 +115,19 @@ function BuyPage() {
       setEnrollStatus('checking');
       setIsProcessing(true);
 
+      // If details changed, update profile in Supabase
+      if (user && (formData.name !== profile?.name || formData.phone !== profile?.phone || formData.gender !== profile?.gender)) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          email: user.email!,
+          name: formData.name,
+          phone: formData.phone,
+          gender: formData.gender,
+          updated_at: new Date().toISOString()
+        });
+        await refreshProfile();
+      }
+
       const result = await enrollAfterPurchase({
         email: formData.email.toLowerCase(),
         name: formData.name,
@@ -114,6 +145,7 @@ function BuyPage() {
         setEnrollStatus('idle'); // Allow "Retry Enrollment"
         setError(result.message || "Payment succeeded but enrollment failed. Please click 'Retry Enrollment'.");
         setHasPaid(true); // Don't trigger Razorpay again
+        setIsProcessing(false);
       }
     };
 
@@ -247,6 +279,26 @@ function BuyPage() {
         <div>
           <h2 className="text-4xl font-black font-headline uppercase mb-8">Your Details</h2>
           
+          {user && (
+            <div className="mb-8 p-6 brute-card bg-black text-white border-primary border-2 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary flex items-center justify-center font-black rounded-full shadow-[2px_2px_0px_0px_white]">
+                  <UserIcon size={24} />
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase text-primary tracking-widest">Active Account</div>
+                  <div className="font-bold text-sm truncate max-w-[150px] md:max-w-[200px]">{user.email}</div>
+                </div>
+              </div>
+              <button 
+                onClick={() => signOut()}
+                className="flex items-center gap-2 text-[10px] font-black uppercase bg-white text-black px-3 py-2 border-2 border-black hover:bg-primary hover:text-white transition-colors"
+              >
+                <LogOut size={12} /> Switch Account
+              </button>
+            </div>
+          )}
+
           {error && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-red-900 border-2 border-red-500 text-white font-bold flex gap-3 text-sm">
               <AlertCircle className="shrink-0 text-red-400" />
@@ -275,10 +327,11 @@ function BuyPage() {
                 name="email" 
                 value={formData.email} 
                 onChange={handleChange}
-                disabled={isProcessing}
-                className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary disabled:opacity-50"
+                disabled={isProcessing || !!user} // Email is fixed if logged in
+                className="w-full bg-white border-2 border-black p-3 font-bold text-black focus:outline-none focus:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
                 placeholder="john@example.com"
               />
+              {user && <p className="text-[10px] font-black uppercase text-black/40 mt-1 tracking-tighter">Login with a different account to change email</p>}
             </div>
 
             <div>

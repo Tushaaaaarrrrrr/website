@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import GrungeOverlay from './components/GrungeOverlay';
 import BruteButton from './components/BruteButton';
@@ -11,12 +11,65 @@ import RefundPage from './pages/RefundPage';
 import ShippingPage from './pages/ShippingPage';
 import ContactPage from './pages/ContactPage';
 import BuyPage from './pages/BuyPage';
+import ProfileSetup from './pages/ProfileSetup';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+/**
+ * Guard Component: Redirects to /setup-profile if authenticated but profile missing.
+ * Prevents browsing until profile is complete.
+ */
+function GuardedRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!loading && user) {
+      const isProfileIncomplete = !profile || !profile.name || !profile.phone;
+      const isOnSetupPage = location.pathname === '/setup-profile';
+      
+      if (isProfileIncomplete && !isOnSetupPage) {
+        navigate('/setup-profile', { replace: true });
+      }
+    }
+  }, [user, profile, loading, location.pathname, navigate]);
+
+  if (loading) return null;
+  return <>{children}</>;
+}
+
+function UserMenu() {
+  const { user, profile, signInWithGoogle, signOut } = useAuth();
+
+  if (!user) {
+    return (
+      <BruteButton variant="primary" className="px-4 py-2 text-sm" onClick={signInWithGoogle}>
+        Login
+      </BruteButton>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <span className="text-xs font-black uppercase tracking-tighter hidden lg:block">
+        HI, <span className="text-primary italic">{profile?.name?.split(' ')[0] || 'IITIAN'}</span>
+      </span>
+      <button 
+        onClick={signOut}
+        className="text-xs font-black uppercase tracking-widest hover:text-primary transition-colors border-b-2 border-transparent hover:border-primary"
+      >
+        Sign Out
+      </button>
+    </div>
+  );
+}
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
   return (
-    <BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
       <div className="min-h-screen bg-black selection:bg-primary selection:text-white flex flex-col">
         <GrungeOverlay />
         
@@ -36,6 +89,7 @@ function App() {
               <a href="/#about" className="hover:text-primary transition-colors">About</a>
               <a href="/#courses" className="hover:text-primary transition-colors">Courses</a>
               <a href="/#results" className="hover:text-primary transition-colors">Results</a>
+              <UserMenu />
               <a href="/#courses">
                 <BruteButton variant="black" className="px-6 py-2 text-sm">Join Now</BruteButton>
               </a>
@@ -53,9 +107,10 @@ function App() {
         {/* Main Routing Content */}
         <main className="flex-grow pt-20">
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/course/:id" element={<CoursePage />} />
-            <Route path="/buy" element={<BuyPage />} />
+            <Route path="/" element={<GuardedRoute><LandingPage /></GuardedRoute>} />
+            <Route path="/course/:id" element={<GuardedRoute><CoursePage /></GuardedRoute>} />
+            <Route path="/buy" element={<GuardedRoute><BuyPage /></GuardedRoute>} />
+            <Route path="/setup-profile" element={<ProfileSetup />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/refund" element={<RefundPage />} />
@@ -105,6 +160,7 @@ function App() {
         </footer>
       </div>
     </BrowserRouter>
+  </AuthProvider>
   );
 }
 
