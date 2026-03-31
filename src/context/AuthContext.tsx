@@ -88,7 +88,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      // Manually clear state to ensure UI updates immediately
+      setUser(null);
+      setProfile(null);
+      // HARD REDIRECT ensures all listeners/states are fresh and takes user to home
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Fallback redirect even on error
+      window.location.href = '/';
+    }
   };
 
   const refreshProfile = async () => {
