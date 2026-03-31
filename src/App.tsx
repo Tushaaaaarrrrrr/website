@@ -58,11 +58,16 @@ function MandatoryAuthModal() {
           A|I
         </div>
         
-        <h2 className="text-4xl md:text-5xl font-headline font-black uppercase mb-8 leading-none tracking-tighter">
-          Welcome To <br className="md:hidden" /><span className="text-primary italic">ALPHA IITIAN</span>
-        </h2>
+        <div className="mb-8">
+          <h2 className="text-2xl md:text-3xl font-headline font-black uppercase leading-none tracking-tighter mb-2">
+            Welcome To
+          </h2>
+          <h2 className="text-5xl md:text-7xl font-headline font-black uppercase leading-none tracking-tighter text-primary italic">
+            ALPHA IITIAN
+          </h2>
+        </div>
         
-        <p className="text-sm md:text-base font-bold text-black/70 mb-10 uppercase leading-relaxed tracking-widest px-4">
+        <p className="text-[10px] md:text-[12px] font-bold text-black/60 mb-10 uppercase tracking-[0.2em] whitespace-nowrap">
           Sign in or create an account using Google
         </p>
 
