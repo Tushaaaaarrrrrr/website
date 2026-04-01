@@ -11,6 +11,7 @@ export interface EnrollRequest {
   name: string;
   phone: string;
   gender?: string;
+  lmsCourseIds?: string[]; // Added this parameter to hold dynamic LMS IDs
   razorpay_payment_id: string;
   razorpay_order_id: string;
   razorpay_signature: string;
@@ -24,23 +25,6 @@ export interface EnrollResponse {
 
 /**
  * Call the backend enrollment bridge after a successful payment.
- *
- * Usage (from a payment success callback):
- * ```ts
- * import { enrollAfterPurchase } from '../services/enrollService';
- *
- * const result = await enrollAfterPurchase({
- *   email: 'student@example.com',
- *   name: 'Student Name',
- *   courseId: 'python-data-science',
- * });
- *
- * if (result.success) {
- *   // Show success message, redirect, etc.
- * } else {
- *   // Show error to user
- * }
- * ```
  */
 export async function enrollAfterPurchase(
   data: EnrollRequest,
@@ -55,6 +39,7 @@ export async function enrollAfterPurchase(
         name: data.name,
         phone: data.phone,
         gender: data.gender,
+        lmsCourseIds: data.lmsCourseIds, // Pass to backend
         razorpay_payment_id: data.razorpay_payment_id,
         razorpay_order_id: data.razorpay_order_id,
         razorpay_signature: data.razorpay_signature,

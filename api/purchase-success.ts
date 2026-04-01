@@ -124,15 +124,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: orderRecord, error: orderError } = await supabase
     .from('website_orders')
-    .select('courseIds, courseNames')
+    .select('courseId, courseIds, courseNames, amount')
     .eq('orderId', razorpay_order_id)
     .maybeSingle();
 
-  const courseIds = Array.isArray(orderRecord?.courseIds)
-    ? orderRecord.courseIds.filter((courseId): courseId is string => typeof courseId === 'string')
+  const lmsCourseIds = Array.isArray(orderRecord?.courseIds)
+    ? orderRecord.courseIds.filter((id): id is string => typeof id === 'string')
+    : [];
+    
+  let courseNames = Array.isArray(orderRecord?.courseNames)
+    ? orderRecord.courseNames.filter((id): id is string => typeof id === 'string')
     : [];
 
-  if (orderError || courseIds.length === 0) {
+  if (courseNames.length !== lmsCourseIds.length) {
+    courseNames = lmsCourseIds.map(id => `Course ${id}`);
+  }
+
+  if (orderError || !orderRecord || lmsCourseIds.length === 0) {
     console.error('[purchase-success] Website order lookup failed', orderError);
     await supabase
       .from('website_orders')
@@ -140,7 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         paymentStatus: 'PAID',
         enrollmentStatus: 'FAILED',
         paymentId: razorpay_payment_id,
-        failureReason: 'Course configuration incomplete',
+        failureReason: 'Order not found or invalid configuration',
         paidAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
@@ -149,33 +157,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ success: false, message: 'Website order not found. Contact support.' });
   }
 
-  const { data: courses, error: coursesError } = await supabase
+  // Get parent course to check for group sync email
+  const { data: parentCourse } = await supabase
     .from('courses')
-    .select('id, name, price, lms_id, googleGroupEmail')
-    .in('id', courseIds);
+    .select('googleGroupEmail')
+    .eq('id', orderRecord.courseId)
+    .maybeSingle();
 
-  if (coursesError || !courses || courses.length !== courseIds.length || courses.some((course) => !course.lms_id)) {
-    console.error('[purchase-success] Course configuration lookup failed', coursesError);
-    await supabase
-      .from('website_orders')
-      .update({
-        paymentStatus: 'PAID',
-        enrollmentStatus: 'FAILED',
-        paymentId: razorpay_payment_id,
-        failureReason: 'Course configuration incomplete',
-        paidAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
-      .eq('orderId', razorpay_order_id);
+  const orderedCourses = lmsCourseIds
+    .map((lmsId, index) => ({ 
+       id: lmsId, 
+       name: courseNames[index], 
+       lms_id: lmsId,
+       googleGroupEmail: parentCourse?.googleGroupEmail || null 
+    }));
 
-    return res.status(404).json({ success: false, message: 'One or more courses are not configured for checkout.' });
-  }
-
-  const orderedCourses = courseIds
-    .map((courseId) => courses.find((course) => course.id === courseId))
-    .filter((course): course is { id: string; name: string; price: number; lms_id: string; googleGroupEmail: string | null } => Boolean(course));
-
-  const totalAmount = orderedCourses.reduce((sum, course) => sum + Number(course.price), 0);
+  const totalAmount = orderRecord.amount || 0;
 
   if (userId) {
     const { data: existingProfile } = await supabase

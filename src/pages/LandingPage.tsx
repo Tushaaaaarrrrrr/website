@@ -39,9 +39,7 @@ function LandingPage() {
     fetchCourses();
   }, []);
 
-  const handleAddToCart = (courseId: string) => {
-    addToCart(courseId);
-  };
+
 
   return (
     <>
@@ -328,9 +326,9 @@ function LandingPage() {
                     <Link to={`/course/${course.id}`} className="flex-1">
                       <BruteButton variant="outline" className="w-full">View Details</BruteButton>
                     </Link>
-                    <Link to={`/checkout?course=${course.id}`} className="flex-1" onClick={() => handleAddToCart(course.id)}>
+                    <Link to={`/buy/${course.id}`} className="flex-1">
                       <BruteButton variant="primary" className="w-full">
-                        {isInCart(course.id) ? 'Checkout' : 'Buy'}
+                        Buy Now
                       </BruteButton>
                     </Link>
                   </div>

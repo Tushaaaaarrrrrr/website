@@ -47,7 +47,6 @@ function HomeRoute() {
 
 function UserMenu() {
   const { user, profile, signOut, isManager, isProfileComplete } = useAuth();
-  const { cartCount } = useCart();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -60,14 +59,6 @@ function UserMenu() {
           {profile?.name?.split(' ')[0] || 'Member'}
         </span>
       </div>
-      {!isManager && (
-        <button
-          onClick={() => navigate('/checkout')}
-          className="text-xs font-black uppercase tracking-widest bg-black text-white px-3 py-2 border-2 border-black hover:bg-primary hover:border-primary transition-all hidden sm:block"
-        >
-          Cart {cartCount > 0 ? `(${cartCount})` : ''}
-        </button>
-      )}
       {!isManager && (
         <button
           onClick={() => navigate('/orders')}

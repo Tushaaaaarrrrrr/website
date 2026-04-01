@@ -21,17 +21,30 @@ export interface Profile {
   rawRole?: string | null;
 }
 
+export interface BundleItem {
+  courseId: string;
+  courseName: string;
+  price: number;
+}
+
 export interface Course {
   id: string;
   lms_id?: string | null;
   googleGroupEmail?: string | null;
   name: string;
+  subtitle?: string | null;
+  category?: string | null;
   description: string;
   price: number;
-  isPinned: boolean;
-  learn: string[];
-  who: string;
-  outcomes: string;
+  discountPrice?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isBundle?: boolean;
+  bundleItems?: BundleItem[] | null;
+  isPinned?: boolean;
+  learn?: string[];
+  who?: string;
+  outcomes?: string;
   createdAt?: string;
 }
 

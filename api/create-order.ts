@@ -21,33 +21,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, message: 'Server configuration error' });
   }
 
-  const { courseIds, userId, email, userName } = req.body;
+  const { websiteCourseId, selectedLmsIds, userId, email, userName } = req.body;
 
-  const normalizedCourseIds = Array.isArray(courseIds)
-    ? [...new Set(courseIds.filter((courseId): courseId is string => typeof courseId === 'string' && courseId.trim().length > 0))]
+  const normalizedLmsIds = Array.isArray(selectedLmsIds)
+    ? [...new Set(selectedLmsIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0))]
     : [];
 
-  if (normalizedCourseIds.length === 0 || !userId || !email) {
+  if (!websiteCourseId || normalizedLmsIds.length === 0 || !userId || !email) {
     return res.status(400).json({ success: false, message: 'Missing course selection or user details' });
   }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: courses, error } = await supabase
+    
+    // Look up the parent website course
+    const { data: course, error } = await supabase
       .from('courses')
-      .select('id, name, price')
-      .in('id', normalizedCourseIds);
+      .select('*')
+      .eq('id', websiteCourseId)
+      .single();
 
-    if (error || !courses || courses.length !== normalizedCourseIds.length) {
+    if (error || !course) {
       console.error('[create-order] Course lookup failed', error);
       return res.status(400).json({ success: false, message: 'Invalid course selection' });
     }
 
-    const orderedCourses = normalizedCourseIds
-      .map((courseId) => courses.find((course) => course.id === courseId))
-      .filter((course): course is { id: string; name: string; price: number } => Boolean(course));
+    let totalAmount = 0;
+    let courseNames: string[] = [];
 
-    const totalAmount = orderedCourses.reduce((sum, course) => sum + Number(course.price), 0);
+    if (course.isBundle && course.bundleItems) {
+      // Calculate from bundleItems
+      const selectedItems = course.bundleItems.filter((item: any) => normalizedLmsIds.includes(item.courseId));
+      if (selectedItems.length !== normalizedLmsIds.length) {
+         return res.status(400).json({ success: false, message: 'Invalid bundle item selection' });
+      }
+      totalAmount = selectedItems.reduce((sum: number, item: any) => sum + Number(item.price || 0), 0);
+      courseNames = selectedItems.map((item: any) => item.courseName || item.courseId);
+    } else {
+      // Single course
+      if (!course.lms_id || !normalizedLmsIds.includes(course.lms_id)) {
+         return res.status(400).json({ success: false, message: 'LMS ID mismatch for single course' });
+      }
+      totalAmount = Number(course.discountPrice || course.price || 0);
+      courseNames = [course.name];
+    }
+
     const amountInPaise = Math.round(totalAmount * 100);
 
     const razorpay = new Razorpay({
@@ -66,11 +84,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userId,
       userName: typeof userName === 'string' ? userName.trim() || null : null,
       userEmail: String(email).trim().toLowerCase(),
-      courseId: orderedCourses[0].id,
-      courseName: orderedCourses[0].name,
-      courseIds: orderedCourses.map((course) => course.id),
-      courseNames: orderedCourses.map((course) => course.name),
-      courseCount: orderedCourses.length,
+      courseId: course.id, // The parent website course ID
+      courseName: course.name,
+      courseIds: normalizedLmsIds, // The LMS IDs to fulfill
+      courseNames: courseNames,
+      courseCount: normalizedLmsIds.length,
       amount: totalAmount,
       paymentStatus: 'CREATED',
       enrollmentStatus: 'PENDING',

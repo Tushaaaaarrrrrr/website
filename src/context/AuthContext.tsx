@@ -57,27 +57,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Check initial session
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currUser = session?.user ?? null;
-      setUser(currUser);
-      if (currUser) {
-        setProfile(await syncProfileFromAuth(currUser));
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        const currUser = session?.user ?? null;
+        setUser(currUser);
+        
+        if (currUser) {
+          try {
+            setProfile(await syncProfileFromAuth(currUser));
+          } catch (profileErr) {
+            console.error('Failed to sync profile on init:', profileErr);
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Init Auth Error:', err);
+        setUser(null);
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     initAuth();
 
     // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currUser = session?.user ?? null;
-      setUser(currUser);
-      if (currUser) {
-        setProfile(await syncProfileFromAuth(currUser));
-      } else {
+      try {
+        const currUser = session?.user ?? null;
+        setUser(currUser);
+        
+        if (currUser) {
+          try {
+            setProfile(await syncProfileFromAuth(currUser));
+          } catch (profileErr) {
+            console.error('Failed to sync profile on auth change:', profileErr);
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Auth State Change Error:', err);
+        setUser(null);
         setProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     subscriptionRef.current = subscription;

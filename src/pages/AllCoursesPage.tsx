@@ -21,10 +21,7 @@ export default function AllCoursesPage() {
     fetchCourses();
   }, []);
 
-  const handleAddToCart = (courseId: string) => {
-    addToCart(courseId);
-    navigate(`/checkout?course=${courseId}`);
-  };
+
 
   return (
     <div className="min-h-screen bg-surface pt-24 px-6 relative">
@@ -64,9 +61,11 @@ export default function AllCoursesPage() {
                     <Link to={`/course/${course.id}`} className="flex-1">
                       <BruteButton variant="outline" className="w-full">View Details</BruteButton>
                     </Link>
-                    <BruteButton variant="primary" className="flex-1" onClick={() => handleAddToCart(course.id)}>
-                      {isInCart(course.id) ? 'Checkout' : 'Buy'}
-                    </BruteButton>
+                    <Link to={`/buy/${course.id}`} className="flex-1">
+                      <BruteButton variant="primary" className="w-full">
+                        Buy Now
+                      </BruteButton>
+                    </Link>
                   </div>
                 </div>
               </div>

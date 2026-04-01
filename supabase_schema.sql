@@ -13,6 +13,13 @@ CREATE TABLE IF NOT EXISTS public.courses (
 
 ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "lms_id" TEXT;
 ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "googleGroupEmail" TEXT;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "subtitle" TEXT;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "category" TEXT;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "discountPrice" NUMERIC;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "endDate" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "isBundle" BOOLEAN DEFAULT false;
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS "bundleItems" JSONB DEFAULT '[]'::jsonb;
 
 -- 2. Activity Logs Table
 CREATE TABLE IF NOT EXISTS public.activity_logs (

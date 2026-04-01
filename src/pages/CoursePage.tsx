@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import ProfileCompletionModal from '../components/ProfileCompletionModal';
 import { logActivity } from '../services/activityLogger';
-import { useCart } from '../context/CartContext';
+
 const features = [
   { icon: <Video className="text-primary" />, text: "Recorded Lectures" },
   { icon: <Users className="text-primary" />, text: "Live Doubt Sessions" },
@@ -20,7 +20,7 @@ function CoursePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { addToCart, isInCart } = useCart();
+
   const [course, setCourse] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const lastLoggedCourseRef = React.useRef<string | null>(null);
@@ -64,8 +64,7 @@ function CoursePage() {
   );
 
   const handleBuyNow = () => {
-    addToCart(course.id);
-    navigate(`/checkout?course=${course.id}`);
+    navigate(`/buy/${course.id}`);
   };
 
   return (
@@ -125,7 +124,7 @@ function CoursePage() {
                 <div className="text-sm font-black uppercase text-surface/50 tracking-widest mb-2">Enrollment Cost</div>
                 <div className="text-primary font-black text-6xl italic leading-none mb-6">₹{course.price}</div>
                 <BruteButton variant="primary" className="w-full text-xl py-4" onClick={handleBuyNow}>
-                  {isInCart(course.id) ? 'Go To Checkout' : 'Add To Cart'}
+                  Buy Now
                 </BruteButton>
               </div>
 
