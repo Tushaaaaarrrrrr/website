@@ -26,7 +26,6 @@ import AllCoursesPage from './pages/AllCoursesPage';
 import LoginPage from './pages/LoginPage';
 import OrdersPage from './pages/OrdersPage';
 import Orders from './pages/manager/Orders';
-import { CartProvider, useCart } from './context/CartContext';
 
 function GuardedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -212,11 +211,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <CartProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </CartProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
     </AuthProvider>
   );
 }

@@ -22,11 +22,9 @@ import NeonGlowButton from '../components/NeonGlowButton';
 import InteractiveFolder from '../components/InteractiveFolder';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { useCart } from '../context/CartContext';
 
 function LandingPage() {
   const { user, signInWithGoogle } = useAuth();
-  const { addToCart, isInCart } = useCart();
   const [courses, setCourses] = React.useState<any[]>([]);
   const [loadingCourses, setLoadingCourses] = React.useState(true);
 
@@ -312,7 +310,15 @@ function LandingPage() {
                     {i % 3 === 0 ? <Database /> : i % 3 === 1 ? <Layers /> : <Shield />}
                   </div>
                   <h3 className="text-3xl font-black uppercase leading-tight mb-2 truncate" title={course.name}>{course.name}</h3>
-                  <div className="text-primary font-black text-4xl italic group-hover:scale-105 transition-transform origin-left">₹{course.price}</div>
+                  {course.isBundle && (
+                    <div className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-1">Bundle Starting from</div>
+                  )}
+                  <div className="flex items-baseline gap-2 group-hover:scale-105 transition-transform origin-left">
+                    <span className="text-primary font-black text-4xl italic">₹{course.discountPrice || course.price}</span>
+                    {course.discountPrice && (
+                      <span className="text-black/30 font-bold text-lg line-through">₹{course.price}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="p-8 bg-surface">
                   <ul className="space-y-3 mb-8">

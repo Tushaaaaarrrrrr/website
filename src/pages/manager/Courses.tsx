@@ -96,6 +96,10 @@ export default function Courses() {
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
       };
 
+      if (!formData.isBundle && formData.bundleItems?.[0]) {
+        payload.lms_id = formData.bundleItems[0].courseId;
+      }
+
       if (editingCourse) {
         const { error } = await supabase.from('courses').update(payload).eq('id', editingCourse.id);
         if (error) throw error;
